@@ -1,0 +1,101 @@
+name: Auto-Release
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: auto-release
+  cancel-in-progress: true
+
+jobs:
+  auto-merge:
+    name: Auto-merge Release PR
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+
+      - name: Find release PR
+        id: find-pr
+        run: |
+          # Find open PR with autorelease: pending label
+          PR_NUMBER=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --label "autorelease: pending" \
+            --state open \
+            --json number \
+            --jq '.[0].number')
+
+          if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
+            echo "No release PR found with 'autorelease: pending' label"
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "Found release PR #$PR_NUMBER"
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Checkout
+        if: steps.find-pr.outputs.found == 'true'
+        uses: actions/checkout@v4
+
+      - name: Verify only release files changed
+        id: check-files
+        if: steps.find-pr.outputs.found == 'true'
+        run: |
+          PR_NUMBER=${{ steps.find-pr.outputs.number }}
+          FILES=$(gh pr view $PR_NUMBER --json files -q '.files[].path')
+          echo "Changed files:"
+          echo "$FILES"
+
+          ALLOWED=true
+          while IFS= read -r file; do
+            case "$file" in
+              */package.json|package.json) ;;
+              */CHANGELOG.md|CHANGELOG.md) ;;
+              .release-please-manifest.json) ;;
+              *)
+                echo "Unexpected file: $file"
+                ALLOWED=false
+                ;;
+            esac
+          done <<< "$FILES"
+
+          if [ "$ALLOWED" = "true" ]; then
+            echo "All files match release patterns"
+            echo "approved=true" >> $GITHUB_OUTPUT
+          else
+            echo "PR contains non-release files, skipping auto-merge"
+            echo "approved=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Approve PR
+        if: steps.check-files.outputs.approved == 'true'
+        run: |
+          PR_NUMBER=${{ steps.find-pr.outputs.number }}
+          gh pr review $PR_NUMBER --approve -b "Auto-approved: release-please PR with only version bump files"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge
+        if: steps.check-files.outputs.approved == 'true'
+        run: |
+          PR_NUMBER=${{ steps.find-pr.outputs.number }}
+          gh pr merge $PR_NUMBER --auto --squash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
