@@ -50,10 +50,16 @@ includes:
 
 tasks:
   install:
-    desc: "Install n8n to OrbStack (use FORCE=1 to reinstall)"
+    desc: "Install n8n with Cloudflare Tunnel (DOMAIN=x SUBDOMAIN=y FORCE=1)"
     aliases: [i]
     cmds:
-      - bun run install:n8n {{if .FORCE}}--force{{end}}
+      - bun run install:n8n {{if .FORCE}}--force{{end}} {{if .DOMAIN}}--domain {{.DOMAIN}}{{end}} {{if .SUBDOMAIN}}--subdomain {{.SUBDOMAIN}}{{end}}
+
+  install:local:
+    desc: "Install n8n for local access only (no tunnel)"
+    aliases: [il]
+    cmds:
+      - bun run install:n8n --local {{if .FORCE}}--force{{end}}
 
   uninstall:
     desc: "Uninstall n8n from OrbStack"
@@ -135,7 +141,8 @@ tasks:
         echo "Command                          Alias     Description"
         echo "─────────────────────────────────────────────────────────────────────────────────────────────────"
         echo -e "${BOLD}Installation:${NC}"
-        echo -e "  ${GREEN}task install${NC}                   ${YELLOW}i${NC}         Install n8n to OrbStack               FORCE=1"
+        echo -e "  ${GREEN}task install${NC}                   ${YELLOW}i${NC}         Install n8n with Cloudflare Tunnel    DOMAIN=x SUBDOMAIN=y FORCE=1"
+        echo -e "  ${GREEN}task install:local${NC}             ${YELLOW}il${NC}        Install n8n for local access only"
         echo -e "  ${GREEN}task uninstall${NC}                 ${YELLOW}u${NC}         Uninstall n8n from OrbStack"
         echo -e "  ${GREEN}task status${NC}                    ${YELLOW}s${NC}         Check n8n installation status"
         echo ""
