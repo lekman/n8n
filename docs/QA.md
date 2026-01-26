@@ -61,6 +61,16 @@ JUnit XML reports are generated in `.logs/test-results/`.
 | IQ-007 | Port Binding (Traefik) | Port 8443 bound to localhost |
 | IQ-008 | Encryption Key Set | 64-character hex key in `.env` |
 
+**Cloudflare Tunnel Tests (conditional):**
+
+| Test ID | Test Case | Acceptance Criteria |
+|---------|-----------|---------------------|
+| IQ-CF-001 | Cloudflared Service in Template | `cloudflare/cloudflared` image in compose |
+| IQ-CF-002 | Tunnel Configuration Variables | All CLOUDFLARE_* env vars present |
+| IQ-CF-003 | Cloudflared Container Running | Container `n8n-cloudflared` running |
+
+These tests only run when tunnel is configured (local-only mode skips them).
+
 **Where:** After installation, before OQ tests
 
 **Run:**
@@ -134,14 +144,18 @@ bun test tests/oq/       # Alternative: direct bun test
 
 | Category | Command | Purpose |
 |----------|---------|---------|
-| **Install** | `task i` | Install n8n to OrbStack |
+| **Install** | `task i` | Install n8n with Cloudflare Tunnel |
 | **Install** | `task i FORCE=1` | Force reinstall |
+| **Install** | `task i DOMAIN=x SUBDOMAIN=y` | Tunnel with options |
+| **Install** | `task il` | Install for local access only |
 | **Uninstall** | `task u` | Remove n8n installation |
 | **Status** | `task s` | Check installation status |
 | **Testing** | `task t` | Run all validation tests |
 | **Testing** | `task iq` | Run IQ tests only |
 | **Testing** | `task oq` | Run OQ tests only |
-| **Testing** | `task tc` | Run tests via Turbo (cached) |
+| **QA** | `task qa` | Run all QA checks |
+| **QA** | `task lint` | Run Biome linter |
+| **QA** | `task security` | Run Semgrep scan |
 | **Logs** | `task n8n:logs` | View n8n container logs |
 | **Restart** | `task n8n:restart` | Restart n8n container |
 | **Shell** | `task n8n:shell` | Open shell in container |
@@ -193,29 +207,47 @@ JUnit XML reports can be consumed by CI systems for test reporting and artifact 
 
 | Test Suite | Tests | Auto-generated Report |
 |------------|-------|----------------------|
-| IQ | 8 | `junit-iq.xml` |
+| IQ (Core) | 8 | `junit-iq.xml` |
+| IQ (Tunnel) | 3 | `junit-iq.xml` |
 | OQ | 8 | `junit-oq.xml` |
-| **Total** | **16** | |
+| **Total** | **19** | |
+
+Tunnel tests are conditional and skip gracefully in local-only mode.
 
 ## Architecture
 
-```plaintext
-┌─────────────────────────────────────────────────────────┐
-│                    Host (macOS)                         │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │              OrbStack / Docker                    │  │
-│  │  ┌─────────────────┐    ┌─────────────────────┐  │  │
-│  │  │    Traefik      │    │        n8n          │  │  │
-│  │  │   (TLS Proxy)   │───▶│   (Workflow Engine) │  │  │
-│  │  │   Port 8443     │    │     Port 5678       │  │  │
-│  │  └─────────────────┘    └─────────────────────┘  │  │
-│  │                               │                   │  │
-│  │                         ┌─────┴─────┐             │  │
-│  │                         │ n8n_data  │             │  │
-│  │                         │ (Volume)  │             │  │
-│  │                         └───────────┘             │  │
-│  └───────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-                          │
-                   https://localhost:8443
+**Local Mode:**
+```
+┌───────────────────────────────────────────────────────┐
+│              OrbStack / Docker                        │
+│   ┌─────────────────┐    ┌─────────────────────┐      │
+│   │    Traefik      │───▶│        n8n          │      │
+│   │   Port 8443     │    │     Port 5678       │      │
+│   └─────────────────┘    └──────────┬──────────┘      │
+│                                     │                 │
+│                               ┌─────┴─────┐           │
+│                               │ n8n_data  │           │
+│                               └───────────┘           │
+└───────────────────────────────────────────────────────┘
+              │
+       https://localhost:8443
+```
+
+**With Cloudflare Tunnel:**
+```
+┌───────────────────────────────────────────────────────┐
+│              OrbStack / Docker                        │
+│   ┌─────────────────┐    ┌─────────────────────┐      │
+│   │    Traefik      │───▶│        n8n          │      │
+│   │   Port 8443     │    │     Port 5678       │      │
+│   └─────────────────┘    └──────────┬──────────┘      │
+│                                     │                 │
+│   ┌─────────────────┐         ┌─────┴─────┐           │
+│   │  cloudflared    │────────▶│ n8n_data  │           │
+│   │  (CF Tunnel)    │         └───────────┘           │
+│   └─────────────────┘                                 │
+└───────────────────────────────────────────────────────┘
+       │                    │
+ https://n8n.example.com    https://localhost:8443
+    (external)                  (local)
 ```

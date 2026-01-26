@@ -4,15 +4,35 @@ One-command installer for n8n workflow automation on macOS with OrbStack. Includ
 
 ## Quick Start
 
+Requires [Bun](https://bun.sh) 1.0+ and [OrbStack](https://orbstack.dev) (or Docker Desktop).
+
+### 1. Create Cloudflare API Token
+
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com) → **My Profile** → **API Tokens**
+2. Click **Create Token** → **Create Custom Token**
+3. Set permissions:
+   - **Zone / Zone / Read**
+   - **Zone / DNS / Edit**
+   - **Account / Cloudflare Tunnel / Edit**
+4. Set zone resources to your domain
+5. Copy the token (shown only once)
+
+### 2. Install n8n
+
 ```bash
 bunx @lekman/n8n-local-deploy install
 ```
 
-After installation, access n8n at **https://localhost:8443**
+The installer will prompt for your Cloudflare token and domain.
 
-Your browser will show a certificate warning (self-signed TLS). Click "Advanced" → "Proceed" to continue.
+**Local only (no tunnel):**
+```bash
+bunx @lekman/n8n-local-deploy install --local
+```
 
-Requires [Bun](https://bun.sh) 1.0+ and [OrbStack](https://orbstack.dev) (or Docker Desktop).
+After installation, access n8n using configured tunnel, or locally at **https://localhost:8443**
+
+Your browser may show a certificate warning for local access (self-signed TLS). Click "Advanced" → "Proceed" to continue.
 
 ## Documentation
 
