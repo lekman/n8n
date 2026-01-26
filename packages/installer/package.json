@@ -1,6 +1,6 @@
 {
   "name": "@lekman/n8n-local-deploy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "One-command installer for n8n workflow automation with GAMP5 IQ/OQ validation",
   "type": "module",
   "main": "dist/index.js",
