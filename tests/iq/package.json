@@ -1,0 +1,10 @@
+{
+  "name": "@lekman/n8n-tests-iq",
+  "version": "0.1.0",
+  "description": "Installation Qualification (IQ) tests for n8n deployment",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "test:iq": "bun test --reporter junit --reporter-outfile=../../.logs/test-results/junit-iq.xml"
+  }
+}

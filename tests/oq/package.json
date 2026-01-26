@@ -1,0 +1,10 @@
+{
+  "name": "@lekman/n8n-tests-oq",
+  "version": "0.1.0",
+  "description": "Operational Qualification (OQ) tests for n8n deployment",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "test:oq": "bun test --reporter junit --reporter-outfile=../../.logs/test-results/junit-oq.xml"
+  }
+}
