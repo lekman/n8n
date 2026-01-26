@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.2.0...n8n-local-deploy-v0.3.0) (2026-01-26)
+
+
+### Features
+
+* add container runtime detection and QA automation ([#3](https://github.com/lekman/n8n/issues/3)) ([ac0f34a](https://github.com/lekman/n8n/commit/ac0f34a95804130b49f7dd995870c9a35833c54c))
+
 ## [0.2.0](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.1.0...n8n-local-deploy-v0.2.0) (2026-01-26)
 
 
