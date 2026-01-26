@@ -1,0 +1,41 @@
+# n8n-specific tasks
+# Custom tasks for n8n operations
+
+version: "3"
+
+tasks:
+  logs:
+    desc: "View n8n container logs"
+    cmds:
+      - docker compose -f docker/n8n/docker-compose.yml logs -f n8n
+
+  restart:
+    desc: "Restart n8n container"
+    cmds:
+      - docker compose -f docker/n8n/docker-compose.yml restart n8n
+
+  shell:
+    desc: "Open shell in n8n container"
+    cmds:
+      - docker compose -f docker/n8n/docker-compose.yml exec n8n sh
+
+  open:
+    desc: "Open n8n in browser"
+    cmds:
+      - open http://localhost:5678
+
+  help:
+    desc: "Show n8n task help"
+    silent: true
+    cmds:
+      - |
+        GREEN='\033[0;32m'
+        BOLD='\033[1m'
+        NC='\033[0m'
+
+        echo -e "${BOLD}n8n Tasks${NC}"
+        echo ""
+        echo -e "  ${GREEN}task n8n:logs${NC}       View n8n container logs"
+        echo -e "  ${GREEN}task n8n:restart${NC}    Restart n8n container"
+        echo -e "  ${GREEN}task n8n:shell${NC}      Open shell in n8n container"
+        echo -e "  ${GREEN}task n8n:open${NC}       Open n8n in browser"
