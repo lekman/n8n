@@ -1,6 +1,41 @@
 import { $ } from "bun";
 import { getDockerDir } from "./config.js";
 
+const COMMAND_TIMEOUT_MS = 10000; // 10 seconds for quick commands
+const PULL_TIMEOUT_MS = 600000; // 10 minutes for docker pull
+
+/**
+ * Run a shell command with timeout using Bun.spawn
+ */
+async function runWithTimeout(
+  command: string,
+  timeoutMs: number = COMMAND_TIMEOUT_MS,
+): Promise<{ exitCode: number; stdout: string } | null> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      proc.kill();
+      resolve(null);
+    }, timeoutMs);
+
+    const proc = Bun.spawn(["sh", "-c", command], {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...process.env, DOCKER_CLI_HINTS: "false" },
+    });
+
+    proc.exited
+      .then(async (exitCode) => {
+        clearTimeout(timeout);
+        const stdout = await new Response(proc.stdout).text();
+        resolve({ exitCode, stdout });
+      })
+      .catch(() => {
+        clearTimeout(timeout);
+        resolve(null);
+      });
+  });
+}
+
 export interface DockerInfo {
   available: boolean;
   runtime: "orbstack" | "docker-desktop" | "unknown";
@@ -19,9 +54,13 @@ export interface ContainerStatus {
  * Check if Docker (via OrbStack or Docker Desktop) is available and running
  */
 export async function checkDocker(): Promise<DockerInfo> {
+  const result = await runWithTimeout("docker info --format '{{json .}}'");
+  if (!result || result.exitCode !== 0) {
+    return { available: false, runtime: "unknown" };
+  }
+
   try {
-    const result = await $`docker info --format '{{json .}}'`.quiet();
-    const info = JSON.parse(result.text());
+    const info = JSON.parse(result.stdout);
 
     // Detect runtime
     let runtime: DockerInfo["runtime"] = "unknown";
@@ -43,10 +82,7 @@ export async function checkDocker(): Promise<DockerInfo> {
       version: info.ServerVersion,
     };
   } catch {
-    return {
-      available: false,
-      runtime: "unknown",
-    };
+    return { available: false, runtime: "unknown" };
   }
 }
 
@@ -81,11 +117,14 @@ export async function composeDown(removeVolumes = false): Promise<void> {
  * Get the status of the n8n container
  */
 export async function getContainerStatus(): Promise<ContainerStatus | null> {
-  try {
-    // Filter for exact container name "n8n" (not n8n-traefik)
-    const result = await $`docker ps -a --filter "name=^n8n$" --format '{{json .}}'`.quiet();
-    const output = result.text().trim();
+  // Filter for exact container name "n8n" (not n8n-traefik)
+  const result = await runWithTimeout("docker ps -a --filter \"name=^n8n$\" --format '{{json .}}'");
+  if (!result || result.exitCode !== 0) {
+    return null;
+  }
 
+  try {
+    const output = result.stdout.trim();
     if (!output) {
       return null;
     }
@@ -141,45 +180,44 @@ export async function waitForHealthy(timeoutMs = 120000, intervalMs = 2000): Pro
  * Check if the n8n image is pulled
  */
 export async function isImagePulled(): Promise<boolean> {
-  try {
-    const result = await $`docker images n8nio/n8n --format '{{.Repository}}'`.quiet();
-    return result.text().trim().includes("n8nio/n8n");
-  } catch {
-    return false;
-  }
+  const result = await runWithTimeout("docker images n8nio/n8n --format '{{.Repository}}'");
+  return result?.stdout.trim().includes("n8nio/n8n") ?? false;
 }
 
 /**
  * Check if the n8n_data volume exists
  */
 export async function volumeExists(): Promise<boolean> {
-  try {
-    const result = await $`docker volume ls --filter "name=n8n_data" --format '{{.Name}}'`.quiet();
-    return result.text().trim().includes("n8n_data");
-  } catch {
-    return false;
-  }
+  const result = await runWithTimeout(
+    "docker volume ls --filter \"name=n8n_data\" --format '{{.Name}}'",
+  );
+  return result?.stdout.trim().includes("n8n_data") ?? false;
 }
 
 /**
  * Check if port 5678 is in use
  */
 export async function isPortAvailable(port = 5678): Promise<boolean> {
-  try {
-    const result = await $`lsof -i :${port}`.quiet();
-    return result.text().trim() === "";
-  } catch {
-    // lsof returns non-zero if port is free
-    return true;
-  }
+  const result = await runWithTimeout(`lsof -i :${port}`);
+  // lsof returns non-zero (or null on timeout) if port is free
+  if (!result) return true;
+  return result.stdout.trim() === "";
 }
 
 /**
  * Pull the required Docker images (n8n and Traefik)
  */
 export async function pullImage(): Promise<void> {
-  await $`docker pull traefik:v3.2`.quiet();
-  await $`docker pull n8nio/n8n:latest`.quiet();
+  // Use longer timeout for pulls (10 minutes each)
+  const traefikResult = await runWithTimeout("docker pull traefik:v3.2", PULL_TIMEOUT_MS);
+  if (!traefikResult || traefikResult.exitCode !== 0) {
+    throw new Error("Failed to pull traefik image (timeout or error)");
+  }
+
+  const n8nResult = await runWithTimeout("docker pull n8nio/n8n:latest", PULL_TIMEOUT_MS);
+  if (!n8nResult || n8nResult.exitCode !== 0) {
+    throw new Error("Failed to pull n8n image (timeout or error)");
+  }
 }
 
 /**
