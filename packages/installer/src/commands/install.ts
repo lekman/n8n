@@ -1,42 +1,51 @@
-import { logger, createSpinner, printBanner, printSuccess } from "../utils/logger.js";
+import { confirm } from "@inquirer/prompts";
 import {
-  checkDocker,
-  composeUp,
-  waitForHealthy,
-  isPortAvailable,
-  pullImage,
-} from "../services/docker.js";
-import {
+  copyDockerCompose,
   createDefaultConfig,
   createEnvFile,
-  copyDockerCompose,
   dockerComposeExists,
   envFileExists,
 } from "../services/config.js";
+import { composeUp, isPortAvailable, pullImage, waitForHealthy } from "../services/docker.js";
+import { ensureRuntime } from "../services/runtime.js";
+import { createSpinner, logger, printBanner, printSuccess } from "../utils/logger.js";
 
 export interface InstallOptions {
   force?: boolean;
+  yes?: boolean;
+  runtime?: "orbstack" | "docker";
 }
 
 export async function install(options: InstallOptions = {}): Promise<void> {
   printBanner();
 
-  // Step 1: Check Docker availability
-  const dockerSpinner = createSpinner("Checking Docker availability...");
-  dockerSpinner.start();
+  // Step 1: Ensure container runtime is available
+  const runtimeSpinner = createSpinner("Checking container runtime...");
+  runtimeSpinner.start();
 
-  const dockerInfo = await checkDocker();
+  try {
+    const runtimeStatus = await ensureRuntime({
+      autoInstall: options.yes,
+      preferredRuntime: options.runtime,
+      onProgress: (message) => {
+        runtimeSpinner.text = message;
+      },
+      onPrompt: async (question) => {
+        runtimeSpinner.stop();
+        const answer = await confirm({ message: question, default: true });
+        runtimeSpinner.start();
+        return answer;
+      },
+    });
 
-  if (!dockerInfo.available) {
-    dockerSpinner.fail("Docker is not available");
-    logger.error("Please install OrbStack (recommended) or Docker Desktop");
-    logger.info("Visit: https://orbstack.dev");
+    const runtime = runtimeStatus.activeRuntime || "unknown";
+    const version = runtimeStatus.orbstack.version || runtimeStatus.docker.version || "unknown";
+    runtimeSpinner.succeed(`Container runtime ready (${runtime} v${version})`);
+  } catch (error) {
+    runtimeSpinner.fail("Container runtime not available");
+    logger.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
-
-  dockerSpinner.succeed(
-    `Docker available via ${dockerInfo.runtime} (v${dockerInfo.version})`
-  );
 
   // Step 2: Check if already installed
   if (!options.force && dockerComposeExists() && envFileExists()) {
@@ -66,7 +75,7 @@ export async function install(options: InstallOptions = {}): Promise<void> {
   try {
     await pullImage();
     pullSpinner.succeed("n8n Docker image pulled");
-  } catch (error) {
+  } catch (_error) {
     pullSpinner.fail("Failed to pull n8n image");
     logger.error("Check your internet connection and try again");
     process.exit(1);
