@@ -1,0 +1,500 @@
+{
+  "name": "Daily Briefing",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://outlook.office365.com/owa/calendar/978d377b479a49a585b905bcbb9638b7@evinova.com/267aecfc60a14571954318ea72a748e29752722892879242358/calendar.ics",
+        "options": {}
+      },
+      "id": "617e767a-5813-43d9-8676-1f7502e8305c",
+      "name": "Fetch Evinova Calendar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        864,
+        -176
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "fromAllCalendars": false,
+        "calendarId": {
+          "__rl": true,
+          "value": "AAMkAGZiMDI0ZjExLWFmNTItNDJlYS1hNGU1LWM1NGQwOTdkNTY5ZABGAAAAAADsK_RVnWggQ4jXypVnMu1_BwDVC5yTsEG0T7BXd7rAewhpAAAAAAEGAADVC5yTsEG0T7BXd7rAewhpAAfYNPVlAAA=",
+          "mode": "list",
+          "cachedResultName": "Travel"
+        },
+        "returnAll": true,
+        "output": "fields",
+        "fields": [
+          "end",
+          "start",
+          "subject",
+          "location",
+          "body",
+          "webLink",
+          "isAllDay"
+        ],
+        "filters": {
+          "custom": "=(start/dateTime ge '{{$node[\"Get Today and Tomorrow\"].json.today}}' and start/dateTime lt '{{$node[\"Get Today and Tomorrow\"].json.tomorrow}}' and isAllDay eq false)\nor\n(isAllDay eq true and end/dateTime gt '{{$node[\"Get Today and Tomorrow\"].json.today}}' and start/dateTime lt '{{$node[\"Get Today and Tomorrow\"].json.tomorrow}}')"
+        }
+      },
+      "id": "020d20d8-d094-4e19-a30f-d6da502c01b3",
+      "name": "Get Travel Calendar",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -16
+      ],
+      "webhookId": "ac8899ea-96c3-49e7-884a-8cc9fe808a65",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "1TDP02vNdgMpruFR",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "options": {
+          "jql": "assignee = currentUser() AND statusCategory IN (\"In Progress\", \"To Do\")"
+        }
+      },
+      "id": "ee60a0eb-4ed8-4e40-9b5b-00f1c9fa2abe",
+      "name": "Fetch Active Jira Tickets",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        864,
+        192
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "rUksHofIMbmmq4Vx",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// iCal Parser for n8n - Evinova Daily Updates with Outlook Travel Calendar\n\nfunction parseICalDate(dateStr, timezone = null) {\n  const year = parseInt(dateStr.substr(0, 4));\n  const month = parseInt(dateStr.substr(4, 2)) - 1;\n  const day = parseInt(dateStr.substr(6, 2));\n  \n  // Handle date-only values (all-day events)\n  if (dateStr.length === 8 || !dateStr.includes('T')) {\n    return new Date(year, month, day);\n  }\n  \n  const hour = parseInt(dateStr.substr(9, 2));\n  const minute = parseInt(dateStr.substr(11, 2));\n  const second = parseInt(dateStr.substr(13, 2));\n  \n  // If ends with 'Z', it's explicitly UTC\n  if (dateStr.endsWith('Z')) {\n    return new Date(Date.UTC(year, month, day, hour, minute, second));\n  }\n  \n  // If timezone specified, create as local time (JavaScript will handle DST)\n  // Note: Full timezone conversion requires more complex logic or libraries\n  if (timezone) {\n    // This creates a local date - proper timezone conversion would need offset calculation\n    return new Date(year, month, day, hour, minute, second);\n  }\n  \n  // Floating time (no timezone) - interpret as local\n  return new Date(year, month, day, hour, minute, second);\n}\n\nfunction parseICalData(icalText) {\n  const lines = icalText.split(/\\r?\\n/);\n  const events = [];\n  let currentEvent = null;\n  \n  for (const line of lines) {\n    if (line.startsWith('BEGIN:VEVENT')) {\n      currentEvent = {};\n    } else if (line.startsWith('END:VEVENT') && currentEvent) {\n      events.push(currentEvent);\n      currentEvent = null;\n    } else if (currentEvent) {\n      const colonIndex = line.indexOf(':');\n      const semicolonIndex = line.indexOf(';');\n      \n      if (colonIndex > -1) {\n        // Extract key and parameters\n        const keyPart = semicolonIndex > -1 && semicolonIndex < colonIndex \n          ? line.substring(0, semicolonIndex)\n          : line.substring(0, colonIndex);\n        \n        const params = {};\n        if (semicolonIndex > -1 && semicolonIndex < colonIndex) {\n          const paramStr = line.substring(semicolonIndex + 1, colonIndex);\n          paramStr.split(';').forEach(p => {\n            const [pKey, pValue] = p.split('=');\n            params[pKey] = pValue;\n          });\n        }\n        \n        const value = line.substring(colonIndex + 1);\n        \n        if (keyPart === 'DTSTART') {\n          currentEvent.start = parseICalDate(value, params.TZID);\n          if (params.TZID) currentEvent.startTimezone = params.TZID;\n        } else if (keyPart === 'DTEND') {\n          currentEvent.end = parseICalDate(value, params.TZID);\n          if (params.TZID) currentEvent.endTimezone = params.TZID;\n        } else if (keyPart === 'SUMMARY') {\n          currentEvent.summary = value;\n        } else if (keyPart === 'LOCATION') {\n          currentEvent.location = value;\n        } else if (keyPart === 'DESCRIPTION') {\n          currentEvent.description = value.replace(/\\\\n/g, '\\n');\n        }\n      }\n    }\n  }\n  \n  return events;\n}\n\n// Get Evinova calendar data (iCal format)\nconst evinovaCalendarData = $node[\"Fetch Evinova Calendar\"].json.data;\nconst evinovaEvents = parseICalData(evinovaCalendarData);\n\n// Get Travel calendar data from Outlook\nlet travelEvents = [];\ntry {\n  const travelCalendarData = $node[\"Get Travel Calendar\"].json;\n  \n  if (Array.isArray(travelCalendarData)) {\n    // Convert Outlook format to our standard format\n    travelEvents = travelCalendarData.map(event => ({\n      start: new Date(event.start.dateTime),\n      end: new Date(event.end.dateTime),\n      summary: event.subject,\n      location: event.location?.displayName || '',\n      description: event.body?.content || '',\n      isAllDay: event.isAllDay || false\n    }));\n  } else if (travelCalendarData && travelCalendarData.subject) {\n    // Single event\n    travelEvents = [{\n      start: new Date(travelCalendarData.start.dateTime),\n      end: new Date(travelCalendarData.end.dateTime),\n      summary: travelCalendarData.subject,\n      location: travelCalendarData.location?.displayName || '',\n      description: travelCalendarData.body?.content || '',\n      isAllDay: travelCalendarData.isAllDay || false\n    }];\n  }\n} catch (e) {\n  console.log(\"No travel calendar events found:\", e.message);\n}\n\n// Get today and tomorrow dates\nconst today = new Date();\ntoday.setHours(0, 0, 0, 0);\nconst tomorrow = new Date(today);\ntomorrow.setDate(tomorrow.getDate() + 1);\n\n// Filter events for today and tomorrow - INCLUDING multi-day events\nfunction filterEventsByDate(events) {\n  const todayEvents = [];\n  const tomorrowEvents = [];\n  \n  for (const event of events) {\n    const eventStart = new Date(event.start);\n    const eventEnd = new Date(event.end);\n    \n    // For multi-day events, check if today or tomorrow falls within the event period\n    const todayTime = today.getTime();\n    const tomorrowTime = tomorrow.getTime();\n    \n    // Reset hours for comparison\n    eventStart.setHours(0, 0, 0, 0);\n    eventEnd.setHours(0, 0, 0, 0);\n    \n    // Check if today is within the event period (inclusive)\n    if (eventStart.getTime() <= todayTime && eventEnd.getTime() >= todayTime) {\n      todayEvents.push(event);\n    }\n    \n    // Check if tomorrow is within the event period (inclusive)\n    if (eventStart.getTime() <= tomorrowTime && eventEnd.getTime() >= tomorrowTime) {\n      tomorrowEvents.push(event);\n    }\n  }\n  \n  // Sort by start time\n  todayEvents.sort((a, b) => a.start - b.start);\n  tomorrowEvents.sort((a, b) => a.start - b.start);\n  \n  return { todayEvents, tomorrowEvents };\n}\n\n// Process calendars\nconst evinovaCalendarFiltered = filterEventsByDate(evinovaEvents);\nconst travelCalendarFiltered = filterEventsByDate(travelEvents);\n\n// Determine current location\nlet currentLocation = 'Hitchin, England'; // Default location\nlet locationNeedsAiExtraction = false;\nlet rawTravelSubject = '';\n\n// Check if we're currently traveling (any travel event spans today)\nconst currentTravelEvents = travelEvents.filter(event => {\n  const eventStart = new Date(event.start);\n  const eventEnd = new Date(event.end);\n  eventStart.setHours(0, 0, 0, 0);\n  eventEnd.setHours(0, 0, 0, 0);\n  return eventStart.getTime() <= today.getTime() && eventEnd.getTime() >= today.getTime();\n});\n\n// Only use travel location if we have a travel event AND it has a location field\nif (currentTravelEvents.length > 0) {\n  const travelEvent = currentTravelEvents[0];\n  const location = travelEvent.location || '';\n  \n  // Only override default location if the travel event has a location\n  if (location && location.trim() !== '') {\n    // Check for known location mappings\n    const locationLower = location.toLowerCase();\n    \n    if (locationLower.includes('gothenburg') || \n        locationLower.includes('goeteborg') || \n        locationLower.includes('göteborg') ||\n        locationLower.includes('bottna')) {\n      currentLocation = 'Bovallstrand, Sweden';\n    } else if (locationLower.includes('tenerife')) {\n      currentLocation = 'Los Gigantes, Tenerife';\n    } else {\n      // Use the location as-is, but flag for AI extraction to clean it up\n      currentLocation = location;\n      locationNeedsAiExtraction = true;\n      rawTravelSubject = location;\n    }\n  }\n  // If no location field, stay with default location\n}\n\n// Format events for better readability\nfunction formatEvents(events) {\n  return events.map(event => ({\n    time: event.isAllDay ? 'All Day' : event.start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),\n    summary: event.summary,\n    location: event.location || 'No location',\n    description: event.description ? event.description.substring(0, 100) + '...' : 'No description'\n  }));\n}\n\n// Debug output\nconsole.log(\"Today:\", today.toDateString());\nconsole.log(\"Travel events found:\", travelEvents.length);\nconsole.log(\"Current travel events:\", currentTravelEvents.length);\nif (currentTravelEvents.length > 0) {\n  console.log(\"Travel event location field:\", currentTravelEvents[0].location);\n  console.log(\"Current location set to:\", currentLocation);\n}\n\nreturn {\n  evinovaCalendar: {\n    today: formatEvents(evinovaCalendarFiltered.todayEvents),\n    tomorrow: formatEvents(evinovaCalendarFiltered.tomorrowEvents)\n  },\n  travelCalendar: {\n    today: formatEvents(travelCalendarFiltered.todayEvents),\n    tomorrow: formatEvents(travelCalendarFiltered.tomorrowEvents),\n    source: 'Outlook Travel Calendar',\n    currentTrip: currentTravelEvents.length > 0 ? formatEvents(currentTravelEvents) : null\n  },\n  currentLocation: currentLocation,\n  locationNeedsAiExtraction: locationNeedsAiExtraction,\n  rawTravelSubject: rawTravelSubject,\n  stats: {\n    todayMeetings: evinovaCalendarFiltered.todayEvents.length,\n    tomorrowMeetings: evinovaCalendarFiltered.tomorrowEvents.length,\n    traveling: currentTravelEvents.length > 0\n  }\n};"
+      },
+      "id": "62085b4c-fe79-4b42-8779-7027c90f106b",
+      "name": "Parse Calendar Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "city",
+              "name": "city",
+              "value": "={{ $node[\"Parse Calendar Data\"].json.currentLocation || 'Hitchin, England' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1c55affd-62df-4dfb-92bc-70475e2121ed",
+      "name": "Extract City",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1248,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "cityName": "={{ $json.city }}"
+      },
+      "id": "bfe4d2e4-2f50-4895-8c24-593dfe8e3b57",
+      "name": "Get Weather Data",
+      "type": "n8n-nodes-base.openWeatherMap",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        -80
+      ],
+      "credentials": {
+        "openWeatherMapApi": {
+          "id": "DmT1qlKFVm74k9GO",
+          "name": "OpenWeatherMap account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-20250514",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4"
+        },
+        "options": {
+          "maxTokensToSample": 2000,
+          "temperature": 0.7
+        }
+      },
+      "id": "b0b3edf6-ed7b-4648-ab11-a353adeb44d5",
+      "name": "Anthropic Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        1680,
+        624
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "JGS3Tcc8REFOa95j",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a highly efficient personal assistant analyzing daily information for an Evinova employee.\n\nToday's Date: {{ $now.format('dddd, MMMM Do YYYY') }}\nCurrent Location: {{ $node[\"Parse Calendar Data\"].json.currentLocation }}\nWeather: {{ $node[\"Get Weather Data\"].json.main.temp }}°C, {{ $node[\"Get Weather Data\"].json.weather[0].description }}\n\nEvinova Calendar Today:\n{{ JSON.stringify($node[\"Parse Calendar Data\"].json.evinovaCalendar.today, null, 2) }}\n\nEvinova Calendar Tomorrow:\n{{ JSON.stringify($node[\"Parse Calendar Data\"].json.evinovaCalendar.tomorrow, null, 2) }}\n\nLatest events from personal calendar:\n{{ JSON.stringify($node[\"Get Personal events\"].json, null, 2) }}\n\nLatest events from administrative tasks calendar:\n{{ JSON.stringify($node[\"Get Admin events\"].json, null, 2) }}\n\nTravel Schedule:\n{{ JSON.stringify($node[\"Parse Calendar Data\"].json.travelCalendar, null, 2) }}\n\nActive Jira Tickets (In Progress & To Do):\n{{ JSON.stringify($node[\"Fetch Active Jira Tickets\"].json, null, 2) }}\n\nCreate a daily briefing following this EXACT markdown format:\n\n# Daily Briefing - {{ $now.format('dddd, MMMM D, YYYY') }}\n\n## Today's Priority Meetings\n\n### High Priority\n- **Meeting Name** (Time): Description\n- **Meeting Name** (Time): Description\n\n### Medium Priority\n- Meeting Name (Time): Description\n\n### Low Priority\n- Meeting Name (Time): Description\n\n## Tomorrow's Preparation Required\n- **Meeting Name**: What needs to be prepared\n- **Meeting Name**: Action items\n\n## Jira Task Analysis\n\n### Currently In Progress\n- **TASK-123**: Task name - Status update\n- **TASK-456**: Task name - Any blockers\n\n### High Priority To Start\n- **TASK-789**: Task name - Why it's important\n- **TASK-012**: Task name - Dependencies\n\n## Today's Action Plan\n\n### Morning (Before Lunch)\n1. First priority task (estimated time)\n2. Second priority task (estimated time)\n\n### Afternoon\n1. Third priority task (estimated time)\n2. Fourth priority task (estimated time)\n\n### Key Deadlines\n- **Today**: Any urgent deadlines\n- **This Week**: Upcoming important dates\n\n## Travel/Location Notes\n[Only include if traveling]\n\n---\n*Remember: Focus on what needs immediate attention*\n\nIMPORTANT FORMATTING RULES:\n- Only include personal appointments in High Priority tasks if marked as important\n- Always add administrative tasks in low priority tasks as they have to be done\n- Use ## for major sections\n- Use ### and #### for subsections\n- Use - for bullet points\n- Use **text** for emphasis/bold\n- Use numbered lists (1. 2. 3.) for sequential tasks\n- Keep descriptions concise\n- Include specific times and ticket numbers\n- Ensure that top level headers, for `Daily Briefing` are at h2, and subsequent headers are h3 and h4. Do not use h1",
+        "batching": {}
+      },
+      "id": "3b043ce0-0058-4bbc-9bc1-f6de45c0a5cd",
+      "name": "AI Analysis",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1680,
+        192
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Email node code with smart header level adjustment\n// This replaces the entire code in your Format Email node\n\n// Generate greeting and date\nconst greetings = [\n  \"Good morning!\",\n  \"Rise and shine!\",\n  \"Hello there!\",\n  \"Top of the morning!\",\n  \"Greetings!\",\n  \"Hey! Ready for today?\",\n  \"Morning!\"\n];\n\nconst randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];\nconst today = new Date().toLocaleDateString('en-GB', { \n  weekday: 'long', \n  year: 'numeric', \n  month: 'long', \n  day: 'numeric' \n});\n\n// Get data from previous nodes\nconst aiAnalysis = $node[\"AI Analysis\"].json.text;\nconst weather = $node[\"Get Weather Data\"].json;\nconst temp = Math.round(weather.main.temp);\nconst feelsLike = Math.round(weather.main.feels_like);\nconst description = weather.weather[0].description;\nconst location = $node[\"Parse Calendar Data\"].json.currentLocation;\n\n// Smart Markdown to HTML converter with header level detection\nfunction convertMarkdownToHTML(markdown) {\n  let html = markdown;\n  \n  // SMART HEADER ADJUSTMENT\n  // Check if AI is using h1 (single #) for the main daily briefing title\n  const hasH1Daily = (\n    html.includes('# Daily Briefing') || \n    html.includes('# Daily Analysis') ||\n    html.includes('# Daily Update') ||\n    /^# Daily/m.test(html)  // Catches any \"# Daily...\" at start of line\n  );\n  \n  const hasH2Daily = (\n    html.includes('## Daily Briefing') || \n    html.includes('## Daily Analysis') ||\n    html.includes('## Daily Update') ||\n    /^## Daily/m.test(html)\n  );\n  \n  // If we have h1 but not h2 for the daily title, bump ALL headers down one level\n  if (hasH1Daily && !hasH2Daily) {\n    console.log(\"Detected h1 usage - adjusting all headers down one level\");\n    \n    const adjustedLines = html.split('\\n').map(line => {\n      // Process from most specific to least specific\n      if (line.startsWith('##### ')) {\n        return '###### ' + line.substring(6);\n      } else if (line.startsWith('#### ')) {\n        return '##### ' + line.substring(5);\n      } else if (line.startsWith('### ')) {\n        return '#### ' + line.substring(4);\n      } else if (line.startsWith('## ')) {\n        return '### ' + line.substring(3);\n      } else if (line.startsWith('# ')) {\n        // Convert h1 to h2\n        return '## ' + line.substring(2);\n      }\n      return line;\n    });\n    html = adjustedLines.join('\\n');\n  }\n  \n  // Now convert to HTML\n  const lines = html.split('\\n');\n  const processedLines = [];\n  \n  for (let i = 0; i < lines.length; i++) {\n    let line = lines[i];\n    \n    // Convert headers to HTML\n    if (line.startsWith('###### ')) {\n      line = '<h6>' + line.substring(7) + '</h6>';\n    } else if (line.startsWith('##### ')) {\n      line = '<h5>' + line.substring(6) + '</h5>';\n    } else if (line.startsWith('#### ')) {\n      line = '<h4>' + line.substring(5) + '</h4>';\n    } else if (line.startsWith('### ')) {\n      line = '<h3>' + line.substring(4) + '</h3>';\n    } else if (line.startsWith('## ')) {\n      line = '<h2>' + line.substring(3) + '</h2>';\n    } else if (line.startsWith('# ')) {\n      // This should rarely happen after our adjustment\n      line = '<h1 style=\"font-size: 28px; color: #1e4080;\">' + line.substring(2) + '</h1>';\n    }\n    \n    // Convert bold text\n    const boldParts = line.split('**');\n    if (boldParts.length > 1) {\n      line = boldParts.map((part, index) => {\n        return index % 2 === 1 ? '<strong>' + part + '</strong>' : part;\n      }).join('');\n    }\n    \n    // Convert italic text (but not if it's part of a list marker)\n    if (!line.startsWith('* ')) {\n      const italicParts = line.split('*');\n      if (italicParts.length > 1) {\n        line = italicParts.map((part, index) => {\n          return index % 2 === 1 ? '<em>' + part + '</em>' : part;\n        }).join('');\n      }\n    }\n    \n    // Handle lists\n    if (line.startsWith('- ') || line.startsWith('* ')) {\n      line = '<li>' + line.substring(2) + '</li>';\n    } else if (/^\\d+\\. /.test(line)) {\n      line = '<li>' + line.replace(/^\\d+\\. /, '') + '</li>';\n    }\n    \n    processedLines.push(line);\n  }\n  \n  // Wrap consecutive <li> elements with <ul>\n  html = processedLines.join('\\n');\n  \n  const finalLines = [];\n  let inList = false;\n  \n  html.split('\\n').forEach((line, index, array) => {\n    if (line.includes('<li>')) {\n      if (!inList) {\n        finalLines.push('<ul>');\n        inList = true;\n      }\n      finalLines.push(line);\n      // Check if next line is not a list item\n      if (index === array.length - 1 || !array[index + 1].includes('<li>')) {\n        finalLines.push('</ul>');\n        inList = false;\n      }\n    } else {\n      finalLines.push(line);\n    }\n  });\n  \n  html = finalLines.join('\\n');\n  \n  // Convert line breaks to <br> for non-HTML lines\n  html = html.split('\\n').map(line => {\n    // Don't add <br> to lines that are already HTML elements or empty\n    if (line.trim().startsWith('<') || line.trim() === '') {\n      return line;\n    }\n    return line + '<br>';\n  }).join('\\n');\n  \n  // Clean up any double breaks after block elements\n  const blockElements = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'p'];\n  blockElements.forEach(tag => {\n    const regex = new RegExp(`</${tag}><br>`, 'g');\n    html = html.replace(regex, `</${tag}>`);\n  });\n  \n  return html;\n}\n\n// Generate the HTML email\nconst htmlContent = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    body { \n      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; \n      line-height: 1.6; \n      color: #333; \n      max-width: 650px; \n      margin: 0 auto; \n      padding: 20px;\n      background-color: #f5f5f5;\n    }\n    .email-container {\n      background-color: white;\n      border-radius: 8px;\n      box-shadow: 0 2px 4px rgba(0,0,0,0.1);\n      overflow: hidden;\n    }\n    .header { \n      background: linear-gradient(135deg, #2c5aa0 0%, #1e4080 100%);\n      color: white;\n      padding: 25px; \n      text-align: center;\n    }\n    .header h1 {\n      margin: 0;\n      font-size: 26px;\n      font-weight: 600;\n    }\n    .header p {\n      margin: 10px 0 0 0;\n      opacity: 0.95;\n    }\n    .weather { \n      background-color: #e3f2fd; \n      padding: 15px 25px; \n      border-bottom: 1px solid #bbdefb;\n      font-size: 14px;\n    }\n    .content { \n      padding: 30px 25px;\n    }\n    \n    /* Headers - h2 is our main section header */\n    h1 { color: #1e4080; font-size: 28px; margin: 25px 0 15px 0; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }\n    h2 { color: #2c5aa0; font-size: 24px; margin: 25px 0 15px 0; font-weight: 600; border-bottom: 1px solid #e8e8e8; padding-bottom: 8px; }\n    h3 { color: #1976d2; font-size: 19px; margin: 20px 0 10px 0; font-weight: 600; }\n    h4 { color: #424242; font-size: 16px; margin: 15px 0 8px 0; font-weight: 600; }\n    h5 { color: #616161; font-size: 14px; margin: 10px 0 5px 0; font-weight: 600; }\n    h6 { color: #757575; font-size: 13px; margin: 8px 0 5px 0; font-weight: 600; }\n    \n    /* Lists */\n    ul, ol { \n      margin: 10px 0 15px 0; \n      padding-left: 25px;\n    }\n    li { \n      margin-bottom: 8px;\n      line-height: 1.5;\n    }\n    li strong {\n      color: #1976d2;\n    }\n    \n    /* Other elements */\n    p { \n      margin: 10px 0;\n      line-height: 1.6;\n    }\n    strong { \n      color: #1976d2; \n      font-weight: 600;\n    }\n    em { \n      font-style: italic; \n      color: #555;\n    }\n    \n    /* Footer */\n    .footer { \n      background-color: #f8f9fa;\n      padding: 20px 25px;\n      text-align: center;\n      font-size: 12px; \n      color: #666;\n      border-top: 1px solid #e0e0e0;\n    }\n    .footer a {\n      color: #2c5aa0;\n      text-decoration: none;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"email-container\">\n    <div class=\"header\">\n      <h1>📅 Daily Briefing</h1>\n      <p><strong>${randomGreeting}</strong> Here's your briefing for ${today}</p>\n    </div>\n    \n    <div class=\"weather\">\n      <strong>🌤️ Weather in ${location}:</strong> ${temp}°C (feels like ${feelsLike}°C) - ${description}\n    </div>\n    \n    <div class=\"content\">\n      ${convertMarkdownToHTML(aiAnalysis)}\n    </div>\n    \n    <div class=\"footer\">\n      <p>This is an automated daily update from your n8n workflow.<br>\n      <strong>Daily Briefing System</strong></p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\n// Plain text version\nconst textContent = `${randomGreeting}\\n\\Daily Briefing - ${today}\\n${'='.repeat(50)}\\n\\nWeather in ${location}: ${temp}°C - ${description}\\n\\n${aiAnalysis}\\n\\n--\\nThis is an automated daily update from your workflow.\\Daily Briefing System<span style=\"display: none\">\\n[P]\\n</span>`;\n\nreturn {\n  subject: `Daily Update - ${today}`,\n  html: htmlContent,\n  text: textContent\n};"
+      },
+      "id": "03d33646-8cd9-4eef-8b70-8b904b2682a7",
+      "name": "Format Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "toRecipients": "tobias@lekman.com",
+        "subject": "={{ $json.subject }}",
+        "bodyContent": "={{ $json.html }}",
+        "additionalFields": {
+          "bodyContentType": "html"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        192
+      ],
+      "id": "c45e622a-e5c7-42da-8242-5e1e826e83d9",
+      "name": "Send Daily Summary Email",
+      "webhookId": "ccd19224-0b18-47ef-8baf-366dd334fd4f",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "1TDP02vNdgMpruFR",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "fromAllCalendars": false,
+        "calendarId": {
+          "__rl": true,
+          "value": "AAMkAGZiMDI0ZjExLWFmNTItNDJlYS1hNGU1LWM1NGQwOTdkNTY5ZABGAAAAAADsK_RVnWggQ4jXypVnMu1_BwDVC5yTsEG0T7BXd7rAewhpAAAAAAEGAADVC5yTsEG0T7BXd7rAewhpAAAAEZrKAAA=",
+          "mode": "list",
+          "cachedResultName": "Calendar"
+        },
+        "returnAll": true,
+        "output": "fields",
+        "fields": [
+          "end",
+          "start",
+          "subject",
+          "body",
+          "webLink",
+          "isAllDay"
+        ],
+        "filters": {
+          "custom": "=(start/dateTime ge '{{$node[\"Get Today and Tomorrow\"].json.today}}' and start/dateTime lt '{{$node[\"Get Today and Tomorrow\"].json.tomorrow}}' and isAllDay eq false)\nor\n(isAllDay eq true and end/dateTime gt '{{$node[\"Get Today and Tomorrow\"].json.today}}' and start/dateTime lt '{{$node[\"Get Today and Tomorrow\"].json.tomorrow}}')"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        864,
+        384
+      ],
+      "id": "b9a3bf8e-1ca6-4956-9d62-525af94e841c",
+      "name": "Get Personal events",
+      "webhookId": "79af9215-6c2f-4396-8473-eb927f661faf",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "1TDP02vNdgMpruFR",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst today = new Date(now.getFullYear(), now.getMonth(), now.getDate());\nnew Date(now.getFullYear(), now.getMonth(), now.getDate())\nconst tomorrow = new Date(today);\ntomorrow.setDate(today.getDate() + 1);\n\nconst isoDate = (d) => d.toISOString().split('.')[0] + 'Z';\n\nreturn [\n  {\n    json: {\n      today: isoDate(today),\n      tomorrow: isoDate(tomorrow),\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        112
+      ],
+      "id": "cd3a3764-0408-4cae-938c-8334ffa2fa48",
+      "name": "Get Today and Tomorrow"
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "fromAllCalendars": false,
+        "calendarId": {
+          "__rl": true,
+          "value": "AAMkAGZiMDI0ZjExLWFmNTItNDJlYS1hNGU1LWM1NGQwOTdkNTY5ZABGAAAAAADsK_RVnWggQ4jXypVnMu1_BwDVC5yTsEG0T7BXd7rAewhpAAAAAAEGAADVC5yTsEG0T7BXd7rAewhpAANBu_AwAAA=",
+          "mode": "list",
+          "cachedResultName": "Administration"
+        },
+        "returnAll": true,
+        "output": "fields",
+        "fields": [
+          "end",
+          "start",
+          "subject",
+          "body",
+          "webLink",
+          "isAllDay"
+        ],
+        "filters": {
+          "custom": "=(start/dateTime ge '{{$node[\"Get Today and Tomorrow\"].json.today}}' and start/dateTime lt '{{$node[\"Get Today and Tomorrow\"].json.tomorrow}}' and isAllDay eq false)\nor\n(isAllDay eq true and end/dateTime gt '{{$node[\"Get Today and Tomorrow\"].json.today}}' and start/dateTime lt '{{$node[\"Get Today and Tomorrow\"].json.tomorrow}}')"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        864,
+        608
+      ],
+      "id": "f1ad4c08-958a-489b-a2ec-9fdae657c6c7",
+      "name": "Get Admin events",
+      "webhookId": "79af9215-6c2f-4396-8473-eb927f661faf",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "1TDP02vNdgMpruFR",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 7 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "8ceb7b45-9277-44ca-8b95-495f7fb3e832",
+      "name": "Run 7:30 on Weekdays",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -48,
+        112
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Fetch Evinova Calendar": {
+      "main": [
+        [
+          {
+            "node": "Get Travel Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Travel Calendar": {
+      "main": [
+        [
+          {
+            "node": "Parse Calendar Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Calendar Data": {
+      "main": [
+        [
+          {
+            "node": "Extract City",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract City": {
+      "main": [
+        [
+          {
+            "node": "Get Weather Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Weather Data": {
+      "main": [
+        [
+          {
+            "node": "Fetch Active Jira Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Active Jira Tickets": {
+      "main": [
+        [
+          {
+            "node": "Get Personal events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Format Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Summary Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Personal events": {
+      "main": [
+        [
+          {
+            "node": "Get Admin events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Today and Tomorrow": {
+      "main": [
+        [
+          {
+            "node": "Fetch Evinova Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Admin events": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run 7:30 on Weekdays": {
+      "main": [
+        [
+          {
+            "node": "Get Today and Tomorrow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c539ab5c-7998-430f-ba72-cb5b68ec3138",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9fc0682a830718ff818ef6e8e55dae1bd92250e5d06e21a4f2a205396c58de9b"
+  },
+  "id": "OZceGux20Y5JZbQ6",
+  "tags": []
+}

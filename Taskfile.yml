@@ -1,0 +1,135 @@
+# n8n Local Installer Task Automation
+# Provides development, testing, and maintenance tasks
+
+version: "3"
+
+# Path to ai-toolkit tasks in node_modules
+vars:
+  TASK_LIB: node_modules/@northbridge-security/ai-toolkit/tasks
+
+# Include shared task libraries
+includes:
+  # Namespaced specialized tasks
+  git:
+    taskfile: "{{.TASK_LIB}}/git.yml"
+    optional: true
+
+  yaml:
+    taskfile: "{{.TASK_LIB}}/yaml.yml"
+    optional: true
+
+  markdown:
+    taskfile: "{{.TASK_LIB}}/markdown.yml"
+    optional: true
+
+  json:
+    taskfile: "{{.TASK_LIB}}/json.yml"
+    optional: true
+
+  bash:
+    taskfile: "{{.TASK_LIB}}/bash.yml"
+    optional: true
+
+  gotask:
+    taskfile: "{{.TASK_LIB}}/gotask.yml"
+    optional: true
+
+  claude:
+    taskfile: "{{.TASK_LIB}}/claude.yml"
+    optional: true
+
+  op:
+    taskfile: "{{.TASK_LIB}}/onepassword.yml"
+    optional: true
+
+  # Project-specific tasks
+  n8n:
+    taskfile: ./scripts/tasks/n8n.yml
+    dir: .
+    optional: true
+
+tasks:
+  install:
+    desc: "Install n8n to OrbStack (use FORCE=1 to reinstall)"
+    aliases: [i]
+    cmds:
+      - bun run install:n8n {{if .FORCE}}--force{{end}}
+
+  uninstall:
+    desc: "Uninstall n8n from OrbStack"
+    aliases: [u]
+    cmds:
+      - bun run uninstall:n8n
+
+  status:
+    desc: "Check n8n installation status"
+    aliases: [s]
+    cmds:
+      - bun run status
+
+  test:iq:
+    desc: "Run Installation Qualification tests"
+    aliases: [iq]
+    cmds:
+      - bun run test:iq
+
+  test:oq:
+    desc: "Run Operational Qualification tests"
+    aliases: [oq]
+    cmds:
+      - bun run test:oq
+
+  test:
+    desc: "Run all validation tests (IQ + OQ)"
+    aliases: [t]
+    cmds:
+      - bun run test:validate
+
+  typecheck:
+    desc: "Run TypeScript type checking"
+    aliases: [tc]
+    cmds:
+      - bun run typecheck
+
+  default:
+    desc: "Show available tasks"
+    aliases: [help, h]
+    silent: true
+    cmds:
+      - |
+        # Color codes
+        GREEN='\033[0;32m'
+        YELLOW='\033[0;33m'
+        BLUE='\033[0;34m'
+        BOLD='\033[1m'
+        NC='\033[0m'
+
+        echo -e "${BOLD}n8n Local Installer${NC}"
+        echo ""
+        echo "Command                          Alias     Description"
+        echo "─────────────────────────────────────────────────────────────────────────────────────────────────"
+        echo -e "${BOLD}Installation:${NC}"
+        echo -e "  ${GREEN}task install${NC}                   ${YELLOW}i${NC}         Install n8n to OrbStack               FORCE=1"
+        echo -e "  ${GREEN}task uninstall${NC}                 ${YELLOW}u${NC}         Uninstall n8n from OrbStack"
+        echo -e "  ${GREEN}task status${NC}                    ${YELLOW}s${NC}         Check n8n installation status"
+        echo ""
+        echo -e "${BOLD}Testing:${NC}"
+        echo -e "  ${GREEN}task test${NC}                      ${YELLOW}t${NC}         Run all validation tests (IQ + OQ)"
+        echo -e "  ${GREEN}task test:iq${NC}                   ${YELLOW}iq${NC}        Run Installation Qualification tests"
+        echo -e "  ${GREEN}task test:oq${NC}                   ${YELLOW}oq${NC}        Run Operational Qualification tests"
+        echo ""
+        echo -e "${BOLD}Development:${NC}"
+        echo -e "  ${GREEN}task typecheck${NC}                 ${YELLOW}tc${NC}        Run TypeScript type checking"
+        echo ""
+        echo -e "${BOLD}n8n Operations:${NC}"
+        echo -e "  ${GREEN}task n8n:logs${NC}                            View n8n container logs"
+        echo -e "  ${GREEN}task n8n:restart${NC}                         Restart n8n container"
+        echo -e "  ${GREEN}task n8n:shell${NC}                           Open shell in n8n container"
+        echo -e "  ${GREEN}task n8n:open${NC}                            Open n8n in browser"
+        echo ""
+        echo -e "${BOLD}Task Libraries:${NC}"
+        echo -e "  ${GREEN}task git:<command>${NC}                       Git operations                    See: task git:help"
+        echo -e "  ${GREEN}task yaml:<command>${NC}             ${YELLOW}yml${NC}       YAML linting & validation         See: task yaml:help"
+        echo -e "  ${GREEN}task markdown:<command>${NC}         ${YELLOW}md${NC}        Markdown linting & validation     See: task markdown:help"
+        echo ""
+        echo -e "${BLUE}Run 'task --list' to see all available tasks${NC}"

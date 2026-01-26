@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    "packages/installer": {
+      "package-name": "@lekman/n8n-local-deploy",
+      "changelog-path": "../../docs/CHANGELOG.md",
+      "release-type": "node"
+    }
+  },
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "chore", "section": "Maintenance", "hidden": true },
+    { "type": "refactor", "section": "Refactoring", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "ci", "section": "CI/CD", "hidden": true }
+  ]
+}
