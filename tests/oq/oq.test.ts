@@ -1,10 +1,7 @@
-import { describe, test, expect, afterAll } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { join } from "node:path";
 import { $ } from "bun";
-import { join } from "path";
-import {
-  createTestSuite,
-  writeJUnitReport,
-} from "../shared/junit-reporter.js";
+import { createTestSuite, writeJUnitReport } from "../shared/junit-reporter.js";
 
 const PROJECT_ROOT = join(import.meta.dir, "../..");
 const RESULTS_DIR = join(PROJECT_ROOT, ".logs/test-results");
@@ -17,7 +14,7 @@ const suite = createTestSuite("Operational Qualification");
 async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
-  timeoutMs = 10000
+  timeoutMs = 10000,
 ): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -52,9 +49,7 @@ describe("Operational Qualification (OQ) Tests", () => {
         name: "Health Endpoint",
         passed: ok,
         duration: performance.now() - startTime,
-        systemOut: ok
-          ? `GET /healthz returned ${response.status}`
-          : undefined,
+        systemOut: ok ? `GET /healthz returned ${response.status}` : undefined,
         error: ok ? undefined : `Health check failed: HTTP ${response.status}`,
       });
 
@@ -86,12 +81,8 @@ describe("Operational Qualification (OQ) Tests", () => {
         name: "Web UI Accessible",
         passed: ok,
         duration: performance.now() - startTime,
-        systemOut: ok
-          ? `GET / returned ${response.status} with HTML content`
-          : undefined,
-        error: ok
-          ? undefined
-          : `Web UI check failed: HTTP ${response.status}, HTML: ${isHtml}`,
+        systemOut: ok ? `GET / returned ${response.status} with HTML content` : undefined,
+        error: ok ? undefined : `Web UI check failed: HTTP ${response.status}, HTML: ${isHtml}`,
       });
 
       expect(ok).toBe(true);
@@ -112,14 +103,11 @@ describe("Operational Qualification (OQ) Tests", () => {
 
     try {
       // The workflows endpoint requires authentication, but should return 401 not error
-      const response = await fetchWithTimeout(
-        `${N8N_BASE_URL}/api/v1/workflows`,
-        {
-          headers: {
-            Accept: "application/json",
-          },
-        }
-      );
+      const response = await fetchWithTimeout(`${N8N_BASE_URL}/api/v1/workflows`, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
 
       // API should respond (even if 401 unauthorized)
       const responds = response.status < 500;
@@ -129,12 +117,8 @@ describe("Operational Qualification (OQ) Tests", () => {
         name: "API Responds",
         passed: responds,
         duration: performance.now() - startTime,
-        systemOut: responds
-          ? `GET /api/v1/workflows returned ${response.status}`
-          : undefined,
-        error: responds
-          ? undefined
-          : `API error: HTTP ${response.status}`,
+        systemOut: responds ? `GET /api/v1/workflows returned ${response.status}` : undefined,
+        error: responds ? undefined : `API error: HTTP ${response.status}`,
       });
 
       expect(responds).toBe(true);
@@ -156,17 +140,13 @@ describe("Operational Qualification (OQ) Tests", () => {
     // For this test, we verify the API endpoints exist and respond
     // Full CRUD testing would require authentication setup
     try {
-      const endpoints = [
-        "/api/v1/workflows",
-        "/api/v1/credentials",
-        "/api/v1/executions",
-      ];
+      const endpoints = ["/api/v1/workflows", "/api/v1/credentials", "/api/v1/executions"];
 
       const results = await Promise.all(
         endpoints.map(async (endpoint) => {
           const response = await fetchWithTimeout(`${N8N_BASE_URL}${endpoint}`);
           return { endpoint, status: response.status };
-        })
+        }),
       );
 
       // All endpoints should respond (even if 401)
@@ -180,9 +160,7 @@ describe("Operational Qualification (OQ) Tests", () => {
         systemOut: allRespond
           ? `API endpoints responding: ${results.map((r) => `${r.endpoint}:${r.status}`).join(", ")}`
           : undefined,
-        error: allRespond
-          ? undefined
-          : `Some endpoints failed: ${JSON.stringify(results)}`,
+        error: allRespond ? undefined : `Some endpoints failed: ${JSON.stringify(results)}`,
       });
 
       expect(allRespond).toBe(true);
@@ -203,10 +181,9 @@ describe("Operational Qualification (OQ) Tests", () => {
 
     try {
       // Check that webhook endpoint is reachable
-      const response = await fetchWithTimeout(
-        `${N8N_BASE_URL}/webhook-test/test`,
-        { method: "GET" }
-      );
+      const response = await fetchWithTimeout(`${N8N_BASE_URL}/webhook-test/test`, {
+        method: "GET",
+      });
 
       // Should get 404 (no webhook registered) or 200, not 500
       const responds = response.status < 500;
@@ -216,12 +193,8 @@ describe("Operational Qualification (OQ) Tests", () => {
         name: "Webhook Registration Capability",
         passed: responds,
         duration: performance.now() - startTime,
-        systemOut: responds
-          ? `Webhook endpoint responding: ${response.status}`
-          : undefined,
-        error: responds
-          ? undefined
-          : `Webhook endpoint error: ${response.status}`,
+        systemOut: responds ? `Webhook endpoint responding: ${response.status}` : undefined,
+        error: responds ? undefined : `Webhook endpoint error: ${response.status}`,
       });
 
       expect(responds).toBe(true);
@@ -242,9 +215,7 @@ describe("Operational Qualification (OQ) Tests", () => {
 
     try {
       // Check executions endpoint
-      const response = await fetchWithTimeout(
-        `${N8N_BASE_URL}/api/v1/executions`
-      );
+      const response = await fetchWithTimeout(`${N8N_BASE_URL}/api/v1/executions`);
 
       const responds = response.status < 500;
 
@@ -253,12 +224,8 @@ describe("Operational Qualification (OQ) Tests", () => {
         name: "Execution Engine",
         passed: responds,
         duration: performance.now() - startTime,
-        systemOut: responds
-          ? `Executions API responding: ${response.status}`
-          : undefined,
-        error: responds
-          ? undefined
-          : `Executions API error: ${response.status}`,
+        systemOut: responds ? `Executions API responding: ${response.status}` : undefined,
+        error: responds ? undefined : `Executions API error: ${response.status}`,
       });
 
       expect(responds).toBe(true);
@@ -290,12 +257,8 @@ describe("Operational Qualification (OQ) Tests", () => {
         name: "Data Persistence",
         passed: mounted,
         duration: performance.now() - startTime,
-        systemOut: mounted
-          ? `Data directory accessible: /home/node/.n8n`
-          : undefined,
-        error: mounted
-          ? undefined
-          : "Data directory not accessible",
+        systemOut: mounted ? `Data directory accessible: /home/node/.n8n` : undefined,
+        error: mounted ? undefined : "Data directory not accessible",
       });
 
       expect(mounted).toBe(true);
@@ -316,8 +279,7 @@ describe("Operational Qualification (OQ) Tests", () => {
 
     try {
       // Check container resource usage
-      const result =
-        await $`docker stats n8n --no-stream --format '{{.MemUsage}}'`.quiet();
+      const result = await $`docker stats n8n --no-stream --format '{{.MemUsage}}'`.quiet();
       const memUsage = result.text().trim();
 
       // Parse memory usage (e.g., "100MiB / 1GiB")
@@ -341,9 +303,7 @@ describe("Operational Qualification (OQ) Tests", () => {
         systemOut: withinLimits
           ? `Memory usage: ${memUsage} (${memoryMB.toFixed(0)}MB)`
           : undefined,
-        error: withinLimits
-          ? undefined
-          : `Memory usage outside limits: ${memUsage}`,
+        error: withinLimits ? undefined : `Memory usage outside limits: ${memUsage}`,
       });
 
       expect(withinLimits).toBe(true);

@@ -91,6 +91,32 @@ tasks:
     cmds:
       - bun run typecheck
 
+  lint:
+    desc: "Run Biome linter and formatter checks"
+    aliases: [l]
+    cmds:
+      - bun run lint
+
+  lint:fix:
+    desc: "Auto-fix lint and format issues"
+    aliases: [lf]
+    cmds:
+      - bun run lint:fix
+
+  security:
+    desc: "Run Semgrep security scan"
+    aliases: [sec]
+    cmds:
+      - bun run security
+
+  qa:
+    desc: "Run all QA checks (lint, typecheck, security, tests)"
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: security
+      - task: test
+
   default:
     desc: "Show available tasks"
     aliases: [help, h]
@@ -120,6 +146,10 @@ tasks:
         echo ""
         echo -e "${BOLD}Development:${NC}"
         echo -e "  ${GREEN}task typecheck${NC}                 ${YELLOW}tc${NC}        Run TypeScript type checking"
+        echo -e "  ${GREEN}task lint${NC}                      ${YELLOW}l${NC}         Run Biome linter and formatter"
+        echo -e "  ${GREEN}task lint:fix${NC}                  ${YELLOW}lf${NC}        Auto-fix lint and format issues"
+        echo -e "  ${GREEN}task security${NC}                  ${YELLOW}sec${NC}       Run Semgrep security scan"
+        echo -e "  ${GREEN}task qa${NC}                                  Run all QA checks"
         echo ""
         echo -e "${BOLD}n8n Operations:${NC}"
         echo -e "  ${GREEN}task n8n:logs${NC}                            View n8n container logs"

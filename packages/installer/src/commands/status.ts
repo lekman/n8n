@@ -1,16 +1,12 @@
 import chalk from "chalk";
-import { logger, printBanner } from "../utils/logger.js";
+import { dockerComposeExists, envFileExists, readEnvFile } from "../services/config.js";
 import {
   checkDocker,
   getContainerStatus,
-  volumeExists,
   isImagePulled,
+  volumeExists,
 } from "../services/docker.js";
-import {
-  dockerComposeExists,
-  envFileExists,
-  readEnvFile,
-} from "../services/config.js";
+import { logger, printBanner } from "../utils/logger.js";
 
 export async function status(): Promise<void> {
   printBanner();
@@ -24,7 +20,7 @@ export async function status(): Promise<void> {
       dockerInfo.available
         ? chalk.green(`✔ ${dockerInfo.runtime} (v${dockerInfo.version})`)
         : chalk.red("✖ Not available")
-    }`
+    }`,
   );
 
   // Installation files
@@ -34,13 +30,11 @@ export async function status(): Promise<void> {
   console.log(
     `Docker Compose:     ${
       composeExists ? chalk.green("✔ Configured") : chalk.yellow("○ Not found")
-    }`
+    }`,
   );
 
   console.log(
-    `Environment File:   ${
-      envExists ? chalk.green("✔ Configured") : chalk.yellow("○ Not found")
-    }`
+    `Environment File:   ${envExists ? chalk.green("✔ Configured") : chalk.yellow("○ Not found")}`,
   );
 
   // Docker resources
@@ -48,15 +42,11 @@ export async function status(): Promise<void> {
   const hasVolume = await volumeExists();
 
   console.log(
-    `n8n Image:          ${
-      imagePulled ? chalk.green("✔ Pulled") : chalk.yellow("○ Not pulled")
-    }`
+    `n8n Image:          ${imagePulled ? chalk.green("✔ Pulled") : chalk.yellow("○ Not pulled")}`,
   );
 
   console.log(
-    `Data Volume:        ${
-      hasVolume ? chalk.green("✔ Exists") : chalk.yellow("○ Not created")
-    }`
+    `Data Volume:        ${hasVolume ? chalk.green("✔ Exists") : chalk.yellow("○ Not created")}`,
   );
 
   // Container status
@@ -70,18 +60,16 @@ export async function status(): Promise<void> {
   } else {
     console.log(
       `Container:          ${
-        containerStatus.running
-          ? chalk.green("✔ Running")
-          : chalk.red("✖ Stopped")
-      }`
+        containerStatus.running ? chalk.green("✔ Running") : chalk.red("✖ Stopped")
+      }`,
     );
 
     console.log(
       `Health:             ${
         containerStatus.healthy
           ? chalk.green("✔ Healthy")
-          : chalk.yellow("○ " + containerStatus.status)
-      }`
+          : chalk.yellow(`○ ${containerStatus.status}`)
+      }`,
     );
 
     console.log(`Image:              ${containerStatus.image}`);
@@ -102,9 +90,7 @@ export async function status(): Promise<void> {
       console.log(`Health Endpoint:    ${chalk.green("✔ Responding")}`);
       console.log(`URL:                ${chalk.cyan("https://localhost:8443")}`);
     } else {
-      console.log(
-        `Health Endpoint:    ${chalk.red(`✖ HTTP ${response.status}`)}`
-      );
+      console.log(`Health Endpoint:    ${chalk.red(`✖ HTTP ${response.status}`)}`);
     }
   } catch {
     console.log(`Health Endpoint:    ${chalk.red("✖ Not responding")}`);
@@ -119,9 +105,7 @@ export async function status(): Promise<void> {
       console.log(`Host:               ${config.host}`);
       console.log(`Port:               ${config.port}`);
       console.log(`Protocol:           ${config.protocol}`);
-      console.log(
-        `Encryption Key:     ${chalk.dim(config.encryptionKey.substring(0, 8) + "...")}`
-      );
+      console.log(`Encryption Key:     ${chalk.dim(`${config.encryptionKey.substring(0, 8)}...`)}`);
     }
   }
 

@@ -1,0 +1,32 @@
+rules:
+  - id: no-hardcoded-secrets
+    pattern-regex: (api[_-]?key|secret|password|token)\s*[:=]\s*['"][^'"]{16,}['"]
+    message: Potential hardcoded secret detected
+    severity: ERROR
+    languages: [typescript, javascript]
+
+  - id: no-eval
+    pattern: eval(...)
+    message: Avoid using eval() as it can execute arbitrary code
+    severity: ERROR
+    languages: [typescript, javascript]
+
+  - id: no-new-function
+    pattern: new Function(...)
+    message: Avoid using new Function() as it can execute arbitrary code
+    severity: ERROR
+    languages: [typescript, javascript]
+
+  - id: no-unsafe-innerhtml
+    patterns:
+      - pattern: $EL.innerHTML = $VAL
+      - pattern-not: $EL.innerHTML = "..."
+    message: Setting innerHTML with dynamic content may lead to XSS
+    severity: WARNING
+    languages: [typescript, javascript]
+
+  - id: no-document-write
+    pattern: document.write(...)
+    message: Avoid document.write() as it can lead to XSS
+    severity: WARNING
+    languages: [typescript, javascript]

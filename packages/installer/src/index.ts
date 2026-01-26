@@ -2,8 +2,8 @@
 
 import { program } from "commander";
 import { install } from "./commands/install.js";
-import { uninstall } from "./commands/uninstall.js";
 import { status } from "./commands/status.js";
+import { uninstall } from "./commands/uninstall.js";
 
 program
   .name("n8n-installer")
@@ -14,8 +14,14 @@ program
   .command("install")
   .description("Install and start n8n")
   .option("-f, --force", "Force reinstall even if already installed")
+  .option("-y, --yes", "Auto-accept prompts (install OrbStack if needed)")
+  .option("--runtime <type>", "Preferred runtime: orbstack or docker", "orbstack")
   .action(async (options) => {
-    await install({ force: options.force });
+    await install({
+      force: options.force,
+      yes: options.yes,
+      runtime: options.runtime,
+    });
   });
 
 program
