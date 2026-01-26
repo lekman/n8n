@@ -1,0 +1,75 @@
+#!/bin/sh
+
+# Exit on first error
+set -e
+
+# Temp dir for capturing output
+TMPDIR="${TMPDIR:-/tmp}"
+LINT_OUT="$TMPDIR/pre-commit-lint-$$"
+TYPE_OUT="$TMPDIR/pre-commit-type-$$"
+SEC_OUT="$TMPDIR/pre-commit-sec-$$"
+AUDIT_OUT="$TMPDIR/pre-commit-audit-$$"
+
+# Cleanup on exit
+cleanup() {
+  rm -f "$LINT_OUT" "$TYPE_OUT" "$SEC_OUT" "$AUDIT_OUT"
+}
+trap cleanup EXIT
+
+# Skip runtime checks in CI (auto-detected)
+if [ -z "$CI" ]; then
+  if ! docker compose -f docker/n8n/docker-compose.yml ps --quiet 2>/dev/null; then
+    bun run install:n8n --yes >/dev/null 2>&1 || {
+      echo "pre-commit: n8n installation failed"
+      exit 1
+    }
+  fi
+fi
+
+# Run parallel checks silently, capture output
+bun run lint >"$LINT_OUT" 2>&1 &
+PID_LINT=$!
+
+bun run typecheck >"$TYPE_OUT" 2>&1 &
+PID_TYPE=$!
+
+bun run security >"$SEC_OUT" 2>&1 &
+PID_SEC=$!
+
+bun run audit >"$AUDIT_OUT" 2>&1 &
+PID_AUDIT=$!
+
+# Wait for all and collect failures
+FAILED=""
+
+wait $PID_LINT || FAILED="$FAILED lint"
+wait $PID_TYPE || FAILED="$FAILED typecheck"
+wait $PID_SEC || FAILED="$FAILED security"
+wait $PID_AUDIT || FAILED="$FAILED audit"
+
+# Report failures with output
+if [ -n "$FAILED" ]; then
+  echo "pre-commit: static analysis failed:$FAILED"
+  for check in $FAILED; do
+    case $check in
+      lint)     cat "$LINT_OUT" ;;
+      typecheck) cat "$TYPE_OUT" ;;
+      security) cat "$SEC_OUT" ;;
+      audit)    cat "$AUDIT_OUT" ;;
+    esac
+  done
+  exit 1
+fi
+
+# Run tests (these already output on failure)
+bun run test:iq >/dev/null 2>&1 || {
+  echo "pre-commit: IQ tests failed"
+  bun run test:iq
+  exit 1
+}
+
+bun run test:oq >/dev/null 2>&1 || {
+  echo "pre-commit: OQ tests failed"
+  bun run test:oq
+  exit 1
+}
