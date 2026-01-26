@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.5.1...n8n-local-deploy-v0.5.2) (2026-01-26)
+
+
+### Bug Fixes
+
+* **installer:** add timeouts to docker commands and fix version parsing ([#12](https://github.com/lekman/n8n/issues/12)) ([ca0d19d](https://github.com/lekman/n8n/commit/ca0d19d5f593824a3d65a40784474fbd331ffd99))
+
 ## [0.5.1](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.5.0...n8n-local-deploy-v0.5.1) (2026-01-26)
 
 
