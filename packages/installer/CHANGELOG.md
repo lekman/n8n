@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.0](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.4.0...n8n-local-deploy-v0.5.0) (2026-01-26)
+
+
+### Features
+
+* add container runtime detection and QA automation ([#3](https://github.com/lekman/n8n/issues/3)) ([ac0f34a](https://github.com/lekman/n8n/commit/ac0f34a95804130b49f7dd995870c9a35833c54c))
+* **installer:** add CLI installer for n8n with Traefik TLS ([363c968](https://github.com/lekman/n8n/commit/363c9688cfe1255574d3e845ef625c03fdbbe041))
+* **installer:** add Cloudflare Tunnel integration ([31c4951](https://github.com/lekman/n8n/commit/31c4951d01dbf07b9cb34cecfac2ff8794a62e08))
+
+
+### Bug Fixes
+
+* **installer:** resolve version at build time for bunx compatibility ([#8](https://github.com/lekman/n8n/issues/8)) ([7ec7460](https://github.com/lekman/n8n/commit/7ec7460be6114115f4660f4e0f72ea98244c613e))
+* **release:** move CHANGELOG to package directory ([38d3cfd](https://github.com/lekman/n8n/commit/38d3cfd9f5385e15f57a5776059d8b40e0781b6b))
+
+
+### Documentation
+
+* update documentation for Cloudflare Tunnel ([a1bb3a3](https://github.com/lekman/n8n/commit/a1bb3a3925c35b48219039ea93127037c9bc2385))
+
 ## [0.4.0](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.3.0...n8n-local-deploy-v0.4.0) (2026-01-26)
 
 
