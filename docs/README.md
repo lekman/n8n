@@ -8,6 +8,10 @@ One-command installer for n8n workflow automation on macOS with OrbStack. Includ
 bunx @lekman/n8n-local-deploy install
 ```
 
+After installation, access n8n at **https://localhost:8443**
+
+Your browser will show a certificate warning (self-signed TLS). Click "Advanced" → "Proceed" to continue.
+
 Requires [Bun](https://bun.sh) 1.0+ and [OrbStack](https://orbstack.dev) (or Docker Desktop).
 
 ## Documentation
