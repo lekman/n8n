@@ -23,6 +23,7 @@ docker/n8n/.env
 .claude/
 .claude
 CLAUDE.md
+.pr.local.md
 
 # OS files
 .DS_Store

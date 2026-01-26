@@ -2,6 +2,8 @@
   "ignore": [
     "tests/iq/iq.test.ts",
     "tests/oq/oq.test.ts",
-    "packages/installer/src/**/*.ts"
+    "packages/installer/src/**/*.ts",
+    "docs/research/**.md",
+    "docs/research/**.json"
   ]
 }
