@@ -119,7 +119,9 @@ async function detectOrbStack(): Promise<RuntimeStatus["orbstack"]> {
     if (running) {
       const versionResult = await runWithTimeout("orb version");
       if (versionResult?.exitCode === 0) {
-        version = versionResult.stdout.trim().split("\n")[0];
+        // Output is "Version: 2.0.5 (2000500)" - extract just the version number
+        const match = versionResult.stdout.match(/(\d+\.\d+\.\d+)/);
+        version = match ? match[1] : versionResult.stdout.trim().split("\n")[0];
       }
     }
   }
