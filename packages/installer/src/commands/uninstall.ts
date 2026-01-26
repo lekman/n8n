@@ -1,8 +1,8 @@
+import { rm } from "node:fs/promises";
 import { confirm } from "@inquirer/prompts";
-import { rm } from "fs/promises";
-import { logger, createSpinner, printBanner } from "../utils/logger.js";
+import { dockerComposeExists, envFileExists, getDockerDir } from "../services/config.js";
 import { composeDown, getContainerStatus, volumeExists } from "../services/docker.js";
-import { getDockerDir, dockerComposeExists, envFileExists } from "../services/config.js";
+import { createSpinner, logger, printBanner } from "../utils/logger.js";
 
 export interface UninstallOptions {
   removeVolumes?: boolean;
@@ -58,7 +58,7 @@ export async function uninstall(options: UninstallOptions = {}): Promise<void> {
   try {
     await composeDown(options.removeVolumes);
     stopSpinner.succeed("n8n containers stopped and removed");
-  } catch (error) {
+  } catch (_error) {
     stopSpinner.fail("Failed to stop containers");
     logger.warning("Containers may have already been removed");
   }

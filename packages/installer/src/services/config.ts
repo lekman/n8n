@@ -1,14 +1,12 @@
-import { randomBytes } from "crypto";
-import { existsSync } from "fs";
-import { readFile, writeFile, mkdir, copyFile, chmod } from "fs/promises";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Get directory of this file (works in both Bun and Node.js)
 const __dirname =
-  typeof import.meta.dir === "string"
-    ? import.meta.dir
-    : dirname(fileURLToPath(import.meta.url));
+  typeof import.meta.dir === "string" ? import.meta.dir : dirname(fileURLToPath(import.meta.url));
 
 // Project root is where the user runs the command (current working directory)
 const PROJECT_ROOT = process.cwd();

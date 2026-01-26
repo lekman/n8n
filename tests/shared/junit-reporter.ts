@@ -1,5 +1,5 @@
-import { writeFileSync, mkdirSync } from "fs";
-import { dirname } from "path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 
 export interface TestResult {
   id: string;
@@ -82,7 +82,7 @@ function escapeXml(str: string): string {
 export async function runTest(
   id: string,
   name: string,
-  testFn: () => Promise<string | void>
+  testFn: () => Promise<string | undefined>,
 ): Promise<TestResult> {
   const startTime = performance.now();
 
@@ -124,7 +124,7 @@ export function createTestSuite(name: string) {
     async run(
       id: string,
       testName: string,
-      testFn: () => Promise<string | void>
+      testFn: () => Promise<string | undefined>,
     ): Promise<TestResult> {
       const result = await runTest(id, testName, testFn);
       tests.push(result);

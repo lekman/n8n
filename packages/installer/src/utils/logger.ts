@@ -23,7 +23,7 @@ export function printBanner() {
 ║       n8n Local Installer v0.1.0          ║
 ║   GAMP5 IQ/OQ Validated Deployment        ║
 ╚═══════════════════════════════════════════╝
-`)
+`),
   );
 }
 
@@ -35,7 +35,9 @@ export function printSuccess(url: string) {
 ║           Installation Complete!          ║
 ╠═══════════════════════════════════════════╣
 ║  n8n is running at:                       ║
-║  `) + chalk.cyan(paddedUrl) + chalk.green(` ║
+║  `) +
+      chalk.cyan(paddedUrl) +
+      chalk.green(` ║
 ║                                           ║
 ║  Next steps:                              ║
 ║  1. Open the URL in your browser          ║
@@ -46,6 +48,6 @@ export function printSuccess(url: string) {
 ║  bun run test:iq    (Installation)        ║
 ║  bun run test:oq    (Operational)         ║
 ╚═══════════════════════════════════════════╝
-`)
+`),
   );
 }
