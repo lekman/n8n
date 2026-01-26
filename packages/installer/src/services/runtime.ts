@@ -21,6 +21,40 @@ export interface RuntimeStatus {
 
 const STARTUP_TIMEOUT_MS = 60000; // 1 minute per PRD decision
 const POLL_INTERVAL_MS = 2000;
+const COMMAND_TIMEOUT_MS = 5000; // 5 seconds for detection commands
+
+/**
+ * Run a shell command with timeout using Bun.spawn
+ * Prevents hanging when Docker/OrbStack daemon isn't responding (common over SSH)
+ */
+async function runWithTimeout(
+  command: string,
+  timeoutMs: number = COMMAND_TIMEOUT_MS,
+): Promise<{ exitCode: number; stdout: string } | null> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      proc.kill();
+      resolve(null);
+    }, timeoutMs);
+
+    const proc = Bun.spawn(["sh", "-c", command], {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...process.env, DOCKER_CLI_HINTS: "false" },
+    });
+
+    proc.exited
+      .then(async (exitCode) => {
+        clearTimeout(timeout);
+        const stdout = await new Response(proc.stdout).text();
+        resolve({ exitCode, stdout });
+      })
+      .catch(() => {
+        clearTimeout(timeout);
+        resolve(null);
+      });
+  });
+}
 
 /**
  * Detect installed container runtimes and their status
@@ -61,48 +95,31 @@ async function detectOrbStack(): Promise<RuntimeStatus["orbstack"]> {
   let running = false;
   let version: string | undefined;
 
-  try {
-    const whichResult = await $`which orb`.quiet().nothrow();
-    commandExists = whichResult.exitCode === 0;
-  } catch {
-    // orb command not found
-  }
+  const whichResult = await runWithTimeout("which orb");
+  commandExists = whichResult?.exitCode === 0;
 
   const installed = appExists || commandExists;
 
   if (installed) {
-    // Check if running via orb status or docker info
-    try {
-      const statusResult = await $`orb status`.quiet().nothrow();
-      if (statusResult.exitCode === 0) {
-        running = statusResult.text().toLowerCase().includes("running");
-      }
-    } catch {
-      // orb status failed, try docker info
+    // Check if running via orb status
+    const statusResult = await runWithTimeout("orb status");
+    if (statusResult?.exitCode === 0) {
+      running = statusResult.stdout.toLowerCase().includes("running");
     }
 
     // Fallback: check via docker info
     if (!running) {
-      try {
-        const dockerResult = await $`docker info --format '{{.OperatingSystem}}'`.quiet().nothrow();
-        if (dockerResult.exitCode === 0) {
-          const os = dockerResult.text().toLowerCase();
-          running = os.includes("orbstack");
-        }
-      } catch {
-        // docker info failed
+      const dockerResult = await runWithTimeout("docker info --format '{{.OperatingSystem}}'");
+      if (dockerResult?.exitCode === 0) {
+        running = dockerResult.stdout.toLowerCase().includes("orbstack");
       }
     }
 
     // Get version if running
     if (running) {
-      try {
-        const versionResult = await $`orb version`.quiet().nothrow();
-        if (versionResult.exitCode === 0) {
-          version = versionResult.text().trim().split("\n")[0];
-        }
-      } catch {
-        // version retrieval failed
+      const versionResult = await runWithTimeout("orb version");
+      if (versionResult?.exitCode === 0) {
+        version = versionResult.stdout.trim().split("\n")[0];
       }
     }
   }
@@ -120,36 +137,27 @@ async function detectDockerDesktop(): Promise<RuntimeStatus["docker"]> {
   let running = false;
   let version: string | undefined;
 
-  try {
-    const whichResult = await $`which docker`.quiet().nothrow();
-    commandExists = whichResult.exitCode === 0;
-  } catch {
-    // docker command not found
-  }
+  const whichResult = await runWithTimeout("which docker");
+  commandExists = whichResult?.exitCode === 0;
 
   const installed = appExists || commandExists;
 
   if (installed) {
     // Check if running via docker info
-    try {
-      const dockerResult = await $`docker info --format '{{.OperatingSystem}}'`.quiet().nothrow();
-      if (dockerResult.exitCode === 0) {
-        const os = dockerResult.text().toLowerCase();
-        // Docker Desktop but not OrbStack
-        running =
-          (os.includes("docker desktop") || os.includes("docker engine")) &&
-          !os.includes("orbstack");
+    const dockerResult = await runWithTimeout("docker info --format '{{.OperatingSystem}}'");
+    if (dockerResult?.exitCode === 0) {
+      const os = dockerResult.stdout.toLowerCase();
+      // Docker Desktop but not OrbStack
+      running =
+        (os.includes("docker desktop") || os.includes("docker engine")) && !os.includes("orbstack");
 
-        // Get version
-        const versionResult = await $`docker version --format '{{.Server.Version}}'`
-          .quiet()
-          .nothrow();
-        if (versionResult.exitCode === 0) {
-          version = versionResult.text().trim();
+      // Get version if running
+      if (running) {
+        const versionResult = await runWithTimeout("docker version --format '{{.Server.Version}}'");
+        if (versionResult?.exitCode === 0) {
+          version = versionResult.stdout.trim();
         }
       }
-    } catch {
-      // docker info failed - not running
     }
   }
 
@@ -160,12 +168,8 @@ async function detectDockerDesktop(): Promise<RuntimeStatus["docker"]> {
  * Detect if Homebrew is available
  */
 async function detectHomebrew(): Promise<RuntimeStatus["homebrew"]> {
-  try {
-    const result = await $`which brew`.quiet().nothrow();
-    return { installed: result.exitCode === 0 };
-  } catch {
-    return { installed: false };
-  }
+  const result = await runWithTimeout("which brew");
+  return { installed: result?.exitCode === 0 };
 }
 
 /**
