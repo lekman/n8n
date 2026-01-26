@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "secureai guard --stdin --json --agent copilot",
+        "powershell": "secureai guard --stdin --json --agent copilot",
+        "timeoutSec": 5,
+        "comment": "SecureAI security policy enforcement"
+      }
+    ]
+  }
+}
