@@ -30,7 +30,10 @@ export async function checkDocker(): Promise<DockerInfo> {
 
     if (operatingSystem.includes("orbstack") || serverVersion.includes("orbstack")) {
       runtime = "orbstack";
-    } else if (operatingSystem.includes("docker desktop") || info.Name?.includes("docker-desktop")) {
+    } else if (
+      operatingSystem.includes("docker desktop") ||
+      info.Name?.includes("docker-desktop")
+    ) {
       runtime = "docker-desktop";
     }
 
@@ -72,14 +75,17 @@ export async function composeDown(removeVolumes = false): Promise<void> {
  */
 export async function getContainerStatus(): Promise<ContainerStatus | null> {
   try {
-    const result = await $`docker ps -a --filter "name=n8n" --format '{{json .}}'`.quiet();
+    // Filter for exact container name "n8n" (not n8n-traefik)
+    const result = await $`docker ps -a --filter "name=^n8n$" --format '{{json .}}'`.quiet();
     const output = result.text().trim();
 
     if (!output) {
       return null;
     }
 
-    const container = JSON.parse(output);
+    // Handle potential multiple lines (take first match)
+    const firstLine = output.split("\n")[0];
+    const container = JSON.parse(firstLine);
 
     return {
       running: container.State === "running",
@@ -96,10 +102,7 @@ export async function getContainerStatus(): Promise<ContainerStatus | null> {
 /**
  * Wait for the n8n container to be healthy
  */
-export async function waitForHealthy(
-  timeoutMs = 120000,
-  intervalMs = 2000
-): Promise<boolean> {
+export async function waitForHealthy(timeoutMs = 120000, intervalMs = 2000): Promise<boolean> {
   const startTime = Date.now();
 
   while (Date.now() - startTime < timeoutMs) {
