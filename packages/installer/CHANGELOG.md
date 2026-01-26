@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.5.0...n8n-local-deploy-v0.5.1) (2026-01-26)
+
+
+### Bug Fixes
+
+* **installer:** add timeout to runtime detection commands ([#10](https://github.com/lekman/n8n/issues/10)) ([ee992df](https://github.com/lekman/n8n/commit/ee992dff18084127be8e1f2c4ca91e51b023ecde))
+
 ## [0.5.0](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.4.0...n8n-local-deploy-v0.5.0) (2026-01-26)
 
 
