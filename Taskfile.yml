@@ -38,6 +38,10 @@ includes:
     taskfile: "{{.TASK_LIB}}/claude.yml"
     optional: true
 
+  op:
+    taskfile: "{{.TASK_LIB}}/onepassword.yml"
+    optional: true
+
   # Project-specific tasks
   n8n:
     taskfile: ./scripts/tasks/n8n.yml
