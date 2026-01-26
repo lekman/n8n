@@ -3,7 +3,6 @@
   "packages": {
     "packages/installer": {
       "package-name": "@lekman/n8n-local-deploy",
-      "changelog-path": "../../docs/CHANGELOG.md",
       "release-type": "node"
     }
   },
