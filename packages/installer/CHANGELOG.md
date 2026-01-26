@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.3.0...n8n-local-deploy-v0.4.0) (2026-01-26)
+
+
+### Features
+
+* add Cloudflare tunnel service ([#5](https://github.com/lekman/n8n/issues/5)) ([70767ba](https://github.com/lekman/n8n/commit/70767baf47e6f0077111f7e7c888b97aedd83d09))
+
 ## [0.3.0](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.2.0...n8n-local-deploy-v0.3.0) (2026-01-26)
 
 
