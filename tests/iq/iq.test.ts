@@ -1,12 +1,9 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { $ } from "bun";
-import { existsSync, readFileSync } from "fs";
-import { join } from "path";
-import {
-  createTestSuite,
-  writeJUnitReport,
-  type TestResult,
-} from "../shared/junit-reporter.js";
+import { detectRuntime } from "../../packages/installer/src/services/runtime.js";
+import { createTestSuite, writeJUnitReport } from "../shared/junit-reporter.js";
 
 const PROJECT_ROOT = join(import.meta.dir, "../..");
 const DOCKER_DIR = join(PROJECT_ROOT, "docker/n8n");
@@ -87,9 +84,7 @@ describe("Installation Qualification (IQ) Tests", () => {
         name: "Environment File Exists",
         passed: valid,
         duration: performance.now() - startTime,
-        systemOut: valid
-          ? `Found: ${envPath} with required variables`
-          : undefined,
+        systemOut: valid ? `Found: ${envPath} with required variables` : undefined,
         error: valid ? undefined : "Missing required environment variables",
       });
 
@@ -144,8 +139,7 @@ describe("Installation Qualification (IQ) Tests", () => {
     const startTime = performance.now();
 
     try {
-      const result =
-        await $`docker images n8nio/n8n --format '{{.Repository}}:{{.Tag}}'`.quiet();
+      const result = await $`docker images n8nio/n8n --format '{{.Repository}}:{{.Tag}}'`.quiet();
       const images = result.text().trim();
 
       const pulled = images.includes("n8nio/n8n");
@@ -209,8 +203,7 @@ describe("Installation Qualification (IQ) Tests", () => {
 
     try {
       // Check Traefik port 8443
-      const result =
-        await $`docker port n8n-traefik 8443 2>/dev/null || echo "not bound"`.quiet();
+      const result = await $`docker port n8n-traefik 8443 2>/dev/null || echo "not bound"`.quiet();
       const binding = result.text().trim();
 
       // Check if port is bound
@@ -238,20 +231,53 @@ describe("Installation Qualification (IQ) Tests", () => {
     }
   });
 
-  test("IQ-008: Encryption Key Set", async () => {
+  test("IQ-008: Runtime Detection", async () => {
+    const startTime = performance.now();
+
+    try {
+      const runtimeStatus = await detectRuntime();
+
+      // At least one runtime should be ready since Docker is working
+      const hasRuntime = runtimeStatus.ready;
+      const activeRuntime = runtimeStatus.activeRuntime || "none";
+
+      suite.addResult({
+        id: "IQ-008",
+        name: "Runtime Detection",
+        passed: hasRuntime,
+        duration: performance.now() - startTime,
+        systemOut: hasRuntime
+          ? `Active runtime: ${activeRuntime}, OrbStack: ${runtimeStatus.orbstack.installed ? "installed" : "not installed"}, Docker: ${runtimeStatus.docker.installed ? "installed" : "not installed"}`
+          : undefined,
+        error: hasRuntime ? undefined : "No container runtime detected",
+      });
+
+      expect(hasRuntime).toBe(true);
+    } catch (error) {
+      suite.addResult({
+        id: "IQ-008",
+        name: "Runtime Detection",
+        passed: false,
+        duration: performance.now() - startTime,
+        error: `Runtime detection failed: ${error}`,
+      });
+      throw error;
+    }
+  });
+
+  test("IQ-009: Encryption Key Set", async () => {
     const startTime = performance.now();
     const envPath = join(DOCKER_DIR, ".env");
 
     if (!existsSync(envPath)) {
       suite.addResult({
-        id: "IQ-008",
+        id: "IQ-009",
         name: "Encryption Key Set",
         passed: false,
         duration: performance.now() - startTime,
         error: "Environment file not found",
       });
       throw new Error("Environment file not found");
-      return;
     }
 
     const content = readFileSync(envPath, "utf-8");
@@ -263,20 +289,18 @@ describe("Installation Qualification (IQ) Tests", () => {
       const valid = /^[a-f0-9]{64}$/i.test(key);
 
       suite.addResult({
-        id: "IQ-008",
+        id: "IQ-009",
         name: "Encryption Key Set",
         passed: valid,
         duration: performance.now() - startTime,
-        systemOut: valid
-          ? `Key length: ${key.length} chars, valid hex format`
-          : undefined,
+        systemOut: valid ? `Key length: ${key.length} chars, valid hex format` : undefined,
         error: valid ? undefined : `Invalid key format: length=${key.length}`,
       });
 
       expect(valid).toBe(true);
     } else {
       suite.addResult({
-        id: "IQ-008",
+        id: "IQ-009",
         name: "Encryption Key Set",
         passed: false,
         duration: performance.now() - startTime,
