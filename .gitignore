@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+bun.lockb
+
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Test results
+.logs/
+.logs
+coverage/
+coverage
+
+# Generated files
+docker/n8n/docker-compose.yml
+docker/n8n/.env
+
+# Local files (not committed)
+.tmp/
+.tmp
+.claude/
+.claude
+CLAUDE.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+*.local
+
+# Turbo
+.turbo/

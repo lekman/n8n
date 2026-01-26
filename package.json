@@ -1,0 +1,46 @@
+{
+  "name": "@lekman/n8n-local-deploy",
+  "version": "0.1.0",
+  "description": "One-command installer for n8n workflow automation with GAMP5 IQ/OQ validation",
+  "type": "module",
+  "packageManager": "bun@1.3.2",
+  "workspaces": [
+    "packages/*",
+    "tests/*"
+  ],
+  "scripts": {
+    "install:n8n": "bun run packages/installer/src/index.ts install",
+    "uninstall:n8n": "bun run packages/installer/src/index.ts uninstall",
+    "status": "bun run packages/installer/src/index.ts status",
+    "test:iq": "bun test tests/iq",
+    "test:oq": "bun test tests/oq",
+    "test:validate": "turbo run test:iq test:oq",
+    "pretest": "mkdir -p .logs/test-results",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@northbridge-security/ai-toolkit": "^0.1.12",
+    "@types/bun": "^1.3.3",
+    "turbo": "^2.6.3",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "bun": ">=1.3.2"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lekman/n8n-local-deploy.git"
+  },
+  "keywords": [
+    "n8n",
+    "workflow",
+    "automation",
+    "docker",
+    "orbstack",
+    "gamp5",
+    "iq",
+    "oq",
+    "validation"
+  ]
+}
