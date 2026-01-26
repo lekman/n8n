@@ -34,9 +34,16 @@ Run `task` or `task help` to see all available commands.
 
 **Installation:**
 ```bash
-task install           # Install n8n to OrbStack
-task uninstall         # Uninstall n8n from OrbStack
-task status            # Check n8n installation status
+task install           # Install n8n with Cloudflare Tunnel (alias: i)
+task install:local     # Install for local access only (alias: il)
+task uninstall         # Uninstall n8n (alias: u)
+task status            # Check installation status (alias: s)
+```
+
+Cloudflare Tunnel options (default mode):
+```bash
+task i DOMAIN=example.com SUBDOMAIN=n8n
+# Or set CLOUDFLARE_API_TOKEN env var to skip prompt
 ```
 
 **Testing:**
@@ -48,7 +55,11 @@ task test:oq           # Run Operational Qualification tests
 
 **Development:**
 ```bash
-task typecheck         # Run TypeScript type checking
+task typecheck         # Run TypeScript type checking (alias: tc)
+task lint              # Run Biome linter (alias: l)
+task lint:fix          # Auto-fix lint issues (alias: lf)
+task security          # Run Semgrep security scan (alias: sec)
+task qa                # Run all QA checks (lint, typecheck, security, tests)
 ```
 
 **n8n Operations:**
@@ -89,10 +100,17 @@ JUnit reports are written to `.logs/test-results/`.
 
 ## Release Process
 
-1. Update version in `package.json` and `packages/installer/package.json`
-2. Run all tests and ensure they pass
-3. Create a git tag matching the version
-4. Publish to npm: `npm publish --access public`
+Releases are automated via [release-please](https://github.com/googleapis/release-please):
+
+1. Merge PRs with [Conventional Commits](https://www.conventionalcommits.org/) format
+2. release-please creates a Release PR with changelog updates
+3. Merge the Release PR to trigger npm publish
+
+**Manual release (if needed):**
+```bash
+task qa                # Ensure all checks pass
+npm publish --access public -w packages/installer
+```
 
 ## Code Style
 
