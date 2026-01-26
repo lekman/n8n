@@ -1,14 +1,25 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import ora, { type Ora } from "ora";
 
-// Read version from package.json
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const packageJsonPath = join(__dirname, "../../package.json");
-const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-export const VERSION = packageJson.version;
+// Version is injected at build time via --define, with fallback for dev mode
+declare const __VERSION__: string;
+
+function getVersion(): string {
+  if (typeof __VERSION__ !== "undefined") {
+    return __VERSION__;
+  }
+  // Dev mode: read from package.json (works when running from source)
+  try {
+    // Dynamic import path that won't be bundled
+    const pkgPath = new URL("../../package.json", import.meta.url);
+    const pkg = require(pkgPath.pathname);
+    return pkg.version;
+  } catch {
+    return "dev";
+  }
+}
+
+export const VERSION = getVersion();
 
 export const logger = {
   info: (message: string) => console.log(chalk.blue("ℹ"), message),
