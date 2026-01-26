@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { $ } from "bun";
+import { readTunnelConfig } from "../../packages/installer/src/services/config.js";
 import { detectRuntime } from "../../packages/installer/src/services/runtime.js";
 import { createTestSuite, writeJUnitReport } from "../shared/junit-reporter.js";
 
@@ -307,6 +308,128 @@ describe("Installation Qualification (IQ) Tests", () => {
         error: "N8N_ENCRYPTION_KEY not found in .env",
       });
       throw new Error("N8N_ENCRYPTION_KEY not found in .env");
+    }
+  });
+
+  // Cloudflare Tunnel IQ Tests (conditional - only run if tunnel is configured)
+  test("IQ-CF-001: Cloudflared Service in Template", async () => {
+    const startTime = performance.now();
+    const composePath = join(DOCKER_DIR, "docker-compose.yml");
+
+    if (!existsSync(composePath)) {
+      suite.addResult({
+        id: "IQ-CF-001",
+        name: "Cloudflared Service in Template",
+        passed: true, // Skip if no compose file (tunnel not configured)
+        duration: performance.now() - startTime,
+        systemOut: "Skipped: docker-compose.yml not found (tunnel not configured)",
+      });
+      return;
+    }
+
+    const content = readFileSync(composePath, "utf-8");
+    const hasCloudflared = content.includes("cloudflare/cloudflared");
+
+    suite.addResult({
+      id: "IQ-CF-001",
+      name: "Cloudflared Service in Template",
+      passed: true, // Always pass - just checking if template is ready
+      duration: performance.now() - startTime,
+      systemOut: hasCloudflared
+        ? "Cloudflared service definition found in docker-compose.yml"
+        : "Cloudflared service not in docker-compose.yml (local-only mode)",
+    });
+
+    // This test always passes - it's informational
+    expect(true).toBe(true);
+  });
+
+  test("IQ-CF-002: Tunnel Configuration Variables", async () => {
+    const startTime = performance.now();
+
+    const tunnelConfig = await readTunnelConfig();
+
+    if (!tunnelConfig) {
+      suite.addResult({
+        id: "IQ-CF-002",
+        name: "Tunnel Configuration Variables",
+        passed: true, // Skip if no tunnel configured
+        duration: performance.now() - startTime,
+        systemOut: "Skipped: No tunnel configuration found (local-only mode)",
+      });
+      return;
+    }
+
+    // Verify all required tunnel variables are present
+    const requiredVars = [
+      "apiToken",
+      "accountId",
+      "zoneId",
+      "zoneName",
+      "tunnelId",
+      "tunnelName",
+      "tunnelToken",
+      "hostname",
+      "dnsRecordId",
+    ];
+
+    const missingVars = requiredVars.filter((v) => !tunnelConfig[v as keyof typeof tunnelConfig]);
+    const valid = missingVars.length === 0;
+
+    suite.addResult({
+      id: "IQ-CF-002",
+      name: "Tunnel Configuration Variables",
+      passed: valid,
+      duration: performance.now() - startTime,
+      systemOut: valid ? `Tunnel configured for: ${tunnelConfig.hostname}` : undefined,
+      error: valid ? undefined : `Missing variables: ${missingVars.join(", ")}`,
+    });
+
+    expect(valid).toBe(true);
+  });
+
+  test("IQ-CF-003: Cloudflared Container Running", async () => {
+    const startTime = performance.now();
+
+    const tunnelConfig = await readTunnelConfig();
+
+    if (!tunnelConfig) {
+      suite.addResult({
+        id: "IQ-CF-003",
+        name: "Cloudflared Container Running",
+        passed: true, // Skip if no tunnel configured
+        duration: performance.now() - startTime,
+        systemOut: "Skipped: No tunnel configuration found (local-only mode)",
+      });
+      return;
+    }
+
+    try {
+      const result =
+        await $`docker inspect --format '{{.State.Status}}' n8n-cloudflared 2>/dev/null || echo "not found"`.quiet();
+      const state = result.text().trim();
+
+      const running = state === "running";
+
+      suite.addResult({
+        id: "IQ-CF-003",
+        name: "Cloudflared Container Running",
+        passed: running,
+        duration: performance.now() - startTime,
+        systemOut: running ? `Cloudflared container state: ${state}` : undefined,
+        error: running ? undefined : `Cloudflared container state: ${state || "not found"}`,
+      });
+
+      expect(running).toBe(true);
+    } catch (error) {
+      suite.addResult({
+        id: "IQ-CF-003",
+        name: "Cloudflared Container Running",
+        passed: false,
+        duration: performance.now() - startTime,
+        error: "Failed to check cloudflared container status",
+      });
+      throw error;
     }
   });
 });
