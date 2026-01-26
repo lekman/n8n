@@ -18,12 +18,12 @@ services:
     container_name: n8n
     restart: unless-stopped
     environment:
-      - N8N_HOST=localhost
+      - N8N_HOST=${N8N_HOST:-localhost}
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - GENERIC_TIMEZONE=UTC
-      - WEBHOOK_URL=https://localhost:8443/
+      - WEBHOOK_URL=${WEBHOOK_URL:-https://localhost:8443/}
     volumes:
       - n8n_data:/home/node/.n8n
     labels:
@@ -40,6 +40,20 @@ services:
       start_period: 30s
     depends_on:
       - traefik
+
+  # Cloudflare Tunnel connector (FR-6)
+  # Only started when CLOUDFLARE_TUNNEL_TOKEN is set
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: n8n-cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - n8n
+    profiles:
+      - tunnel  # Only started when tunnel is configured
 
 volumes:
   n8n_data:
