@@ -1,12 +1,19 @@
 import { rm } from "node:fs/promises";
 import { confirm } from "@inquirer/prompts";
-import { dockerComposeExists, envFileExists, getDockerDir } from "../services/config.js";
+import { CloudflareService } from "../services/cloudflare.js";
+import {
+  dockerComposeExists,
+  envFileExists,
+  getDockerDir,
+  readTunnelConfig,
+} from "../services/config.js";
 import { composeDown, getContainerStatus, volumeExists } from "../services/docker.js";
 import { createSpinner, logger, printBanner } from "../utils/logger.js";
 
 export interface UninstallOptions {
   removeVolumes?: boolean;
   force?: boolean;
+  yes?: boolean;
 }
 
 export async function uninstall(options: UninstallOptions = {}): Promise<void> {
@@ -51,7 +58,29 @@ export async function uninstall(options: UninstallOptions = {}): Promise<void> {
     }
   }
 
-  // Step 1: Stop and remove containers
+  // Step 1: Check for tunnel configuration and clean up cloud resources
+  const tunnelConfig = await readTunnelConfig();
+
+  if (tunnelConfig) {
+    logger.info("Cloudflare Tunnel detected");
+
+    // FR-7.4: Prompt for confirmation before deleting cloud resources
+    const shouldDeleteCloud =
+      options.force || options.yes
+        ? true
+        : await confirm({
+            message: "Delete Cloudflare Tunnel and DNS record?",
+            default: true,
+          });
+
+    if (shouldDeleteCloud) {
+      await cleanupCloudflareResources(tunnelConfig);
+    } else {
+      logger.warning("Cloudflare resources preserved - tunnel will remain active");
+    }
+  }
+
+  // Step 2: Stop and remove containers
   const stopSpinner = createSpinner("Stopping n8n containers...");
   stopSpinner.start();
 
@@ -63,7 +92,7 @@ export async function uninstall(options: UninstallOptions = {}): Promise<void> {
     logger.warning("Containers may have already been removed");
   }
 
-  // Step 2: Remove generated files
+  // Step 3: Remove generated files
   const cleanSpinner = createSpinner("Removing generated files...");
   cleanSpinner.start();
 
@@ -89,5 +118,42 @@ export async function uninstall(options: UninstallOptions = {}): Promise<void> {
   } else if (hasVolume) {
     logger.info("Data volume preserved - reinstall will restore your workflows");
     logger.info("To remove data: docker volume rm n8n_data");
+  }
+}
+
+/**
+ * Clean up Cloudflare Tunnel and DNS resources
+ * FR-7.1: Delete tunnel via API
+ * FR-7.2: Delete DNS CNAME record via API
+ */
+async function cleanupCloudflareResources(
+  tunnelConfig: Awaited<ReturnType<typeof readTunnelConfig>>,
+): Promise<void> {
+  if (!tunnelConfig) return;
+
+  const cloudflare = new CloudflareService(tunnelConfig.apiToken);
+
+  // FR-7.2: Delete DNS record first
+  const dnsSpinner = createSpinner("Deleting DNS record...");
+  dnsSpinner.start();
+
+  try {
+    await cloudflare.deleteDnsRecord(tunnelConfig.zoneId, tunnelConfig.dnsRecordId);
+    dnsSpinner.succeed(`DNS record deleted: ${tunnelConfig.hostname}`);
+  } catch (error) {
+    dnsSpinner.fail("Failed to delete DNS record");
+    logger.warning(String(error));
+  }
+
+  // FR-7.1: Delete tunnel
+  const tunnelSpinner = createSpinner("Deleting Cloudflare Tunnel...");
+  tunnelSpinner.start();
+
+  try {
+    await cloudflare.deleteTunnel(tunnelConfig.tunnelId);
+    tunnelSpinner.succeed(`Tunnel deleted: ${tunnelConfig.tunnelName}`);
+  } catch (error) {
+    tunnelSpinner.fail("Failed to delete tunnel");
+    logger.warning(String(error));
   }
 }
