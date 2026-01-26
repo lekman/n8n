@@ -4,60 +4,105 @@ on:
   push:
     branches:
       - main
-
-permissions:
-  contents: write
-  pull-requests: write
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    branches:
+      - main
 
 jobs:
+  # Run release-please on push to main
   release-please:
     name: Release Please
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
     steps:
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+
       - name: Release Please
         id: release
         uses: googleapis/release-please-action@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  publish:
-    name: Publish to npm
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
+  # Auto-approve and merge release-please PRs
+  auto-merge:
+    name: Auto-merge Release PR
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'autorelease: pending')
+    permissions:
+      contents: read
     steps:
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - name: Verify only release files changed
+        id: check-files
+        run: |
+          # Get list of changed files
+          FILES=$(gh pr view ${{ github.event.pull_request.number }} --json files -q '.files[].path')
+          echo "Changed files:"
+          echo "$FILES"
 
-      - name: Install dependencies
-        run: bun install
+          # Check each file matches allowed patterns
+          ALLOWED=true
+          while IFS= read -r file; do
+            case "$file" in
+              */package.json|package.json) ;;
+              */CHANGELOG.md|CHANGELOG.md) ;;
+              .release-please-manifest.json) ;;
+              *)
+                echo "❌ Unexpected file: $file"
+                ALLOWED=false
+                ;;
+            esac
+          done <<< "$FILES"
 
-      - name: TypeScript check
-        run: bun run typecheck
-        working-directory: packages/installer
-
-      - name: Build package
-        run: bun run build
-        working-directory: packages/installer
-
-      - name: Setup Node.js for npm publish
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Publish to npm
-        run: npm publish --access public
-        working-directory: packages/installer
+          if [ "$ALLOWED" = "true" ]; then
+            echo "✅ All files match release patterns"
+            echo "approved=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ PR contains non-release files, skipping auto-merge"
+            echo "approved=false" >> $GITHUB_OUTPUT
+          fi
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Wait for CI to pass
+        if: steps.check-files.outputs.approved == 'true'
+        run: |
+          echo "Waiting for CI checks to complete..."
+          gh pr checks ${{ github.event.pull_request.number }} --watch --fail-fast
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Approve PR
+        if: steps.check-files.outputs.approved == 'true'
+        run: |
+          gh pr review ${{ github.event.pull_request.number }} --approve -b "Auto-approved: release-please PR with only version bump files"
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Enable auto-merge
+        if: steps.check-files.outputs.approved == 'true'
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} --auto --squash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
