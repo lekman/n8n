@@ -52,10 +52,17 @@ export async function checkDocker(): Promise<DockerInfo> {
 
 /**
  * Run docker compose up in the docker directory
+ * @param extraArgs Optional extra arguments to pass to docker compose (e.g., ["--profile", "tunnel"])
  */
-export async function composeUp(): Promise<void> {
+export async function composeUp(extraArgs?: string[]): Promise<void> {
   const dockerDir = getDockerDir();
-  await $`docker compose -f ${dockerDir}/docker-compose.yml up -d`.quiet();
+  const composeFile = `${dockerDir}/docker-compose.yml`;
+
+  if (extraArgs && extraArgs.length > 0) {
+    await $`docker compose -f ${composeFile} ${extraArgs} up -d`.quiet();
+  } else {
+    await $`docker compose -f ${composeFile} up -d`.quiet();
+  }
 }
 
 /**
