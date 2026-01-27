@@ -8,13 +8,20 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.websecure.address=:8443"
+      - "--ping=true"
     ports:
       - "8443:8443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:1.76.1
     container_name: n8n
     restart: unless-stopped
     environment:
@@ -39,19 +46,21 @@ services:
       retries: 3
       start_period: 30s
     depends_on:
-      - traefik
+      traefik:
+        condition: service_healthy
 
   # Cloudflare Tunnel connector (FR-6)
   # Only started when CLOUDFLARE_TUNNEL_TOKEN is set
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2025.1.1
     container_name: n8n-cloudflared
     restart: unless-stopped
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      - n8n
+      n8n:
+        condition: service_healthy
     profiles:
       - tunnel  # Only started when tunnel is configured
 
