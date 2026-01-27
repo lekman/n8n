@@ -20,10 +20,9 @@ docker/n8n/.env
 # Local files (not committed)
 .tmp/
 .tmp
-.claude/
-.claude
-CLAUDE.md
 .pr.local.md
+.claude/mcp.json
+.claude/settings.local.*
 
 # OS files
 .DS_Store

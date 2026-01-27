@@ -49,6 +49,89 @@ includes:
     optional: true
 
 tasks:
+  setup:
+    desc: "Install/upgrade all required tools via Homebrew"
+    silent: true
+    cmds:
+      - |
+        set -euo pipefail
+
+        GREEN='\033[0;32m'
+        YELLOW='\033[0;33m'
+        CYAN='\033[0;36m'
+        NC='\033[0m'
+
+        echo -e "${CYAN}Installing/upgrading required tools${NC}"
+        echo ""
+
+        # Install or upgrade bun
+        if brew list oven-sh/bun/bun &>/dev/null; then
+          echo -e "${GREEN}Running:${NC} brew upgrade oven-sh/bun/bun"
+          brew upgrade oven-sh/bun/bun 2>/dev/null || echo -e "${YELLOW}[SKIP]${NC} bun already at latest version"
+        else
+          echo -e "${GREEN}Running:${NC} brew install oven-sh/bun/bun"
+          brew install oven-sh/bun/bun
+          echo -e "${GREEN}✓${NC} bun installed"
+        fi
+
+        # Install or upgrade go-task
+        if brew list go-task &>/dev/null; then
+          echo -e "${GREEN}Running:${NC} brew upgrade go-task"
+          brew upgrade go-task 2>/dev/null || echo -e "${YELLOW}[SKIP]${NC} go-task already at latest version"
+        else
+          echo -e "${GREEN}Running:${NC} brew install go-task"
+          brew install go-task
+          echo -e "${GREEN}✓${NC} go-task installed"
+        fi
+
+        # Install or upgrade semgrep
+        if brew list semgrep &>/dev/null; then
+          echo -e "${GREEN}Running:${NC} brew upgrade semgrep"
+          brew upgrade semgrep 2>/dev/null || echo -e "${YELLOW}[SKIP]${NC} semgrep already at latest version"
+        else
+          echo -e "${GREEN}Running:${NC} brew install semgrep"
+          brew install semgrep
+          echo -e "${GREEN}✓${NC} semgrep installed"
+        fi
+
+        echo ""
+        echo -e "${GREEN}Running:${NC} bun install"
+        bun install
+
+        echo ""
+        echo -e "${GREEN}✓${NC} Setup complete"
+
+  skills:
+    desc: "Copy local skills to global Claude settings (~/.claude/skills/)"
+    silent: true
+    cmds:
+      - |
+        set -euo pipefail
+
+        GREEN='\033[0;32m'
+        RED='\033[0;31m'
+        CYAN='\033[0;36m'
+        NC='\033[0m'
+
+        SOURCE_DIR=".claude/skills"
+        TARGET_DIR="$HOME/.claude/skills"
+
+        if [ ! -d "$SOURCE_DIR" ]; then
+          echo -e "${RED}✗${NC} Local skills directory not found at $SOURCE_DIR" >&2
+          exit 1
+        fi
+
+        mkdir -p "$TARGET_DIR"
+
+        echo -e "${CYAN}Copying skills to $TARGET_DIR${NC}"
+        cp -R "$SOURCE_DIR"/* "$TARGET_DIR/"
+
+        echo ""
+        echo -e "${GREEN}✓${NC} Skills installed:"
+        ls -1 "$TARGET_DIR" | while read skill; do
+          echo "  - $skill"
+        done
+
   install:
     desc: "Install n8n with Cloudflare Tunnel (DOMAIN=x SUBDOMAIN=y FORCE=1)"
     aliases: [i]
@@ -140,6 +223,10 @@ tasks:
         echo ""
         echo "Command                          Alias     Description"
         echo "─────────────────────────────────────────────────────────────────────────────────────────────────"
+        echo -e "${BOLD}Setup:${NC}"
+        echo -e "  ${GREEN}task setup${NC}                               Install/upgrade tools (bun, go-task, semgrep)"
+        echo -e "  ${GREEN}task skills${NC}                              Copy local skills to ~/.claude/skills/"
+        echo ""
         echo -e "${BOLD}Installation:${NC}"
         echo -e "  ${GREEN}task install${NC}                   ${YELLOW}i${NC}         Install n8n with Cloudflare Tunnel    DOMAIN=x SUBDOMAIN=y FORCE=1"
         echo -e "  ${GREEN}task install:local${NC}             ${YELLOW}il${NC}        Install n8n for local access only"
