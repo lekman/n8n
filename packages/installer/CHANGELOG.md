@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.5.2...n8n-local-deploy-v0.5.3) (2026-01-27)
+
+
+### Bug Fixes
+
+* **docker:** Improve container startup reliability ([#14](https://github.com/lekman/n8n/issues/14)) ([263d3a5](https://github.com/lekman/n8n/commit/263d3a58dfec10115072b6d4b2303efa1aa06bd1))
+
 ## [0.5.2](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.5.1...n8n-local-deploy-v0.5.2) (2026-01-26)
 
 
