@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# Add common tool paths (homebrew, bun, nvm)
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.bun/bin:$PATH"
+# Add nvm node if available
+[ -d "$HOME/.nvm/versions/node" ] && export PATH="$HOME/.nvm/versions/node/$(ls "$HOME/.nvm/versions/node" 2>/dev/null | tail -1)/bin:$PATH"
+
 # Exit on first error
 set -e
 
