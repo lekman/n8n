@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.4](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.5.3...n8n-local-deploy-v0.5.4) (2026-01-27)
+
+
+### Bug Fixes
+
+* **docker:** add trust proxy and update image versions ([#16](https://github.com/lekman/n8n/issues/16)) ([9a0fdf9](https://github.com/lekman/n8n/commit/9a0fdf933feb7d5f55dcba52bf50204d82bc1a81))
+
 ## [0.5.3](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.5.2...n8n-local-deploy-v0.5.3) (2026-01-27)
 
 
