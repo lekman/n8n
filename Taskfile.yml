@@ -132,6 +132,43 @@ tasks:
           echo "  - $skill"
         done
 
+  start:
+    desc: "Start OrbStack and n8n container"
+    silent: true
+    cmds:
+      - |
+        set -euo pipefail
+
+        GREEN='\033[0;32m'
+        YELLOW='\033[0;33m'
+        RED='\033[0;31m'
+        NC='\033[0m'
+
+        # Ensure OrbStack is running
+        if ! pgrep -q OrbStack; then
+          echo -e "${GREEN}Running:${NC} open -a OrbStack"
+          open -a OrbStack
+          echo -e "${YELLOW}Waiting for OrbStack to start...${NC}"
+          sleep 5
+        else
+          echo -e "${GREEN}✓${NC} OrbStack is running"
+        fi
+
+        # Check if n8n container exists
+        if ! docker compose -f docker/n8n/docker-compose.yml ps -a --format json 2>/dev/null | grep -q n8n; then
+          echo -e "${RED}✗${NC} n8n not installed. Run: task install:local"
+          exit 1
+        fi
+
+        # Start container if not running
+        if ! docker compose -f docker/n8n/docker-compose.yml ps --format json 2>/dev/null | grep -q '"running"'; then
+          echo -e "${GREEN}Running:${NC} docker compose up -d"
+          docker compose -f docker/n8n/docker-compose.yml up -d
+          echo -e "${GREEN}✓${NC} n8n container started"
+        else
+          echo -e "${GREEN}✓${NC} n8n container already running"
+        fi
+
   install:
     desc: "Install n8n with Cloudflare Tunnel (DOMAIN=x SUBDOMAIN=y FORCE=1)"
     aliases: [i]
@@ -230,6 +267,7 @@ tasks:
         echo -e "${BOLD}Installation:${NC}"
         echo -e "  ${GREEN}task install${NC}                   ${YELLOW}i${NC}         Install n8n with Cloudflare Tunnel    DOMAIN=x SUBDOMAIN=y FORCE=1"
         echo -e "  ${GREEN}task install:local${NC}             ${YELLOW}il${NC}        Install n8n for local access only"
+        echo -e "  ${GREEN}task start${NC}                               Start OrbStack and n8n container"
         echo -e "  ${GREEN}task uninstall${NC}                 ${YELLOW}u${NC}         Uninstall n8n from OrbStack"
         echo -e "  ${GREEN}task status${NC}                    ${YELLOW}s${NC}         Check n8n installation status"
         echo ""
