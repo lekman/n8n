@@ -21,7 +21,7 @@ services:
       start_period: 10s
 
   n8n:
-    image: n8nio/n8n:1.76.1
+    image: n8nio/n8n:2.4.6
     container_name: n8n
     restart: unless-stopped
     environment:
@@ -29,6 +29,7 @@ services:
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_TRUST_PROXY=true
       - GENERIC_TIMEZONE=UTC
       - WEBHOOK_URL=${WEBHOOK_URL:-https://localhost:8443/}
     volumes:
@@ -52,7 +53,7 @@ services:
   # Cloudflare Tunnel connector (FR-6)
   # Only started when CLOUDFLARE_TUNNEL_TOKEN is set
   cloudflared:
-    image: cloudflare/cloudflared:2025.1.1
+    image: cloudflare/cloudflared:2026.1.1
     container_name: n8n-cloudflared
     restart: unless-stopped
     command: tunnel run
