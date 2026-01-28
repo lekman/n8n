@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.5](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.5.4...n8n-local-deploy-v0.5.5) (2026-01-28)
+
+
+### Documentation
+
+* add always-on server instructions for macOS ([#19](https://github.com/lekman/n8n/issues/19)) ([2094694](https://github.com/lekman/n8n/commit/20946943c476cc56710d727a44ce9bcbb976b390))
+
 ## [0.5.4](https://github.com/lekman/n8n/compare/n8n-local-deploy-v0.5.3...n8n-local-deploy-v0.5.4) (2026-01-27)
 
 
