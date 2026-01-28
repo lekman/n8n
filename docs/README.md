@@ -34,6 +34,16 @@ After installation, access n8n using configured tunnel, or locally at **https://
 
 Your browser may show a certificate warning for local access (self-signed TLS). Click "Advanced" → "Proceed" to continue.
 
+## Always-On Server (Optional)
+
+If you're running n8n on a Mac that should stay awake 24/7, disable sleep and Power Nap to prevent containers from being suspended:
+
+```bash
+sudo pmset -c sleep 0 standby 0 powernap 0 disksleep 0
+```
+
+Verify settings with `pmset -g`. The values should show `0` for each.
+
 ## Documentation
 
 - [Installation Guide](research/INSTALL.md) - Step-by-step setup instructions

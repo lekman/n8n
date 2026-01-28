@@ -51,6 +51,16 @@ bunx @lekman/n8n-local-deploy uninstall  # Uninstall
 | `--subdomain <name>` | Subdomain for n8n |
 | `--yes` | Auto-accept prompts |
 
+## Always-On Server (Optional)
+
+If you're running n8n on a Mac that should stay awake 24/7, disable sleep and Power Nap to prevent containers from being suspended:
+
+```bash
+sudo pmset -c sleep 0 standby 0 powernap 0 disksleep 0
+```
+
+Verify settings with `pmset -g`. The values should show `0` for each.
+
 ## License
 
 MIT
