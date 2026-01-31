@@ -1,3 +1,9 @@
+# Publish to npm and GitHub Packages when a release is published.
+# Triggered by release-please creating a GitHub release, or manually via workflow_dispatch.
+#
+# Required secrets:
+#   NPM_TOKEN — npm access token with publish permission for @lekman scope
+
 name: Continuous Deployment
 
 on:
@@ -11,7 +17,7 @@ on:
         type: string
 
 jobs:
-  publish:
+  publish-npm:
     name: Publish to npm
     runs-on: ubuntu-latest
     permissions:
@@ -38,14 +44,63 @@ jobs:
         run: bun run build
         working-directory: packages/installer
 
-      - name: Setup Node.js for npm publish
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
+      - name: Configure npm registry
+        run: |
+          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" > .npmrc
 
       - name: Publish to npm
-        run: npm publish --access public
         working-directory: packages/installer
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm publish --access public 2>&1 | tee publish.log || {
+            if grep -q "You cannot publish over the previously published versions" publish.log; then
+              echo "::notice::Version already exists on npm, skipping"
+            else
+              cat publish.log
+              exit 1
+            fi
+          }
+
+  publish-gpr:
+    name: Publish to GitHub Packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build package
+        run: bun run build
+        working-directory: packages/installer
+
+      - name: Configure GitHub Packages registry
+        run: |
+          echo "@lekman:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}" >> .npmrc
+
+      - name: Publish to GitHub Packages
+        working-directory: packages/installer
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm publish --access public 2>&1 | tee publish.log || {
+            if grep -qE "(already exists|EPUBLISHCONFLICT|cannot publish over)" publish.log; then
+              echo "::notice::Version already exists on GitHub Packages, skipping"
+            else
+              cat publish.log
+              exit 1
+            fi
+          }

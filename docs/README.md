@@ -1,5 +1,7 @@
 # n8n Local Installer
 
+[![npm version](https://img.shields.io/npm/v/@lekman/n8n-local-deploy)](https://www.npmjs.com/package/@lekman/n8n-local-deploy)
+
 One-command installer for n8n workflow automation on macOS with OrbStack. Includes GAMP5-style Installation Qualification (IQ) and Operational Qualification (OQ) tests with JUnit output for validated deployments.
 
 ## Quick Start
